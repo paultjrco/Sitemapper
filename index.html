@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sitemap Generator</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: #f0efeb;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+header h1 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-right: 8px;
+}
+
+.btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  color: #1a1a1a;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.btn:hover { background: #f5f5f3; }
+.btn-primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.btn-primary:hover { background: #333; }
+.btn-success { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+.btn-success:hover { background: #d0ecd1; }
+
+.toolbar-sep { width: 1px; height: 24px; background: #ddd; margin: 0 4px; }
+
+main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: calc(100vh - 53px);
+}
+
+#sidebar {
+  width: 300px;
+  min-width: 220px;
+  max-width: 400px;
+  background: #fff;
+  border-right: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  resize: horizontal;
+}
+
+#sidebar-inner {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#sidebar h2 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+textarea {
+  width: 100%;
+  height: 200px;
+  font-size: 11px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+textarea:focus { outline: none; border-color: #999; }
+
+.hint {
+  font-size: 11px;
+  color: #888;
+  line-height: 1.6;
+}
+.hint code {
+  background: #f0efeb;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.sample-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sample-btns .btn { width: 100%; text-align: left; font-size: 12px; }
+
+#err {
+  color: #c0392b;
+  font-size: 12px;
+  background: #fdecea;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: none;
+}
+
+#export-area {
+  background: #f0f7ff;
+  border: 1px solid #b3d4f5;
+  border-radius: 6px;
+  padding: 10px;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+#export-area p { font-size: 11px; color: #555; line-height: 1.5; }
+#export-area .export-links { display: flex; gap: 8px; flex-wrap: wrap; }
+#export-area a {
+  display: inline-block;
+  padding: 5px 12px;
+  font-size: 12px;
+  border: 1px solid #b3d4f5;
+  border-radius: 5px;
+  background: #fff;
+  color: #1565c0;
+  text-decoration: none;
+  cursor: pointer;
+}
+#export-area a:hover { background: #e8f0fe; }
+
+#canvas-area {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+  background: #f0efeb;
+}
+
+#map {
+  position: relative;
+  background: #f0efeb;
+}
+
+.sm-box {
+  position: absolute;
+  width: 164px;
+  border-radius: 5px;
+  border-width: 1px;
+  border-style: solid;
+  padding: 0 0 6px 0;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: grab;
+  background: #fff;
+}
+.sm-box.dragging {
+  cursor: grabbing;
+  opacity: 0.9;
+  z-index: 1000;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.sm-title {
+  font-size: 8.5px;
+  font-weight: 600;
+  padding: 5px 20px 3px 7px;
+  line-height: 1.3;
+}
+.sm-title.root { font-size: 9.5px; }
+.sm-sep { height: 0.5px; margin: 0 4px 4px; }
+.sm-bullet { font-size: 7.5px; padding: 0 7px; line-height: 1.5; word-break: break-word; }
+.sm-toggle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  background: transparent;
+  cursor: pointer;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.45;
+  padding: 0;
+  line-height: 1;
+}
+.sm-toggle:hover { opacity: 1; background: rgba(255,255,255,0.6); }
+
+.zone-label {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #aaa;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.zone-rule {
+  position: absolute;
+  border: none;
+  border-top: 1.5px dashed #ddd;
+  margin: 0;
+  pointer-events: none;
+}
+svg.connectors {
+  position: absolute;
+  top: 0; left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+footer {
+  padding: 8px 20px;
+  font-size: 11px;
+  color: #aaa;
+  border-top: 1px solid #ddd;
+  background: #fff;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sitemap Generator</h1>
+  <button class="btn btn-primary" onclick="generate()">Generate</button>
+  <div class="toolbar-sep"></div>
+  <button class="btn btn-success" onclick="buildExport()">Prepare Export</button>
+  <div class="toolbar-sep"></div>
+  <span style="font-size:12px;color:#888">Drag boxes to reposition &nbsp;·&nbsp; Click ↕↔ to toggle orientation</span>
+</header>
+
+<main>
+  <div id="sidebar">
+    <div id="sidebar-inner">
+
+      <div>
+        <h2>CSV Data</h2>
+      </div>
+
+      <div class="hint">
+        Columns: <code>Page</code>, <code>Parent</code>, <code>Section</code>, <code>Bullets</code><br>
+        Section = <code>main</code>, <code>header</code>, or <code>footer</code><br>
+        Bullets separated by <code>;</code> &nbsp;·&nbsp; Root has Parent = <code>—</code>
+      </div>
+
+      <textarea id="csv" placeholder="Page,Parent,Section,Bullets&#10;Homepage,—,main,Hero;About;Contact&#10;About,Homepage,main,Team;Mission"></textarea>
+
+      <div id="err"></div>
+
+      <div>
+        <h2 style="margin-bottom:6px">Sample data</h2>
+        <div class="sample-btns">
+          <button class="btn" onclick="loadTVCC()">Tri-Valley Career Center</button>
+          <button class="btn" onclick="loadDeep()">Deep site (3–4 levels)</button>
+        </div>
+      </div>
+
+      <div id="export-area">
+        <p>Click a link to open in a new tab, then save with <strong>Cmd+S</strong> (Mac) or <strong>Ctrl+S</strong> (Windows). Or right-click → Save link as.</p>
+        <div class="export-links">
+          <a id="svg-link" target="_blank">Open SVG ↗</a>
+          <a id="png-link" target="_blank">Open PNG 2× ↗</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="canvas-area">
+    <div id="map"></div>
+  </div>
+</main>
+
+<footer>
+  Sitemap Generator &nbsp;·&nbsp; Drag to reposition &nbsp;·&nbsp; ↕↔ toggles child orientation &nbsp;·&nbsp; Prepare Export for SVG and PNG
+</footer>
+
+<script>
+const TVCC=`Page,Parent,Section,Bullets
+Homepage,—,main,Hero with audience cards;Featured Workshops;Upcoming Events;Quick Links / CTAs
+Job Seekers,Homepage,main,Career Services & Counseling;Workshops & Events;Job Board;Training Opportunities;Resources & Community Support;Tip Sheets;Free Tax Preparation;EDD Information;Have a Question?
+Employers,Homepage,main,Employer Services;Post a Job;Hiring Events;Training Assistance;Labor Market Information;Small Business Resources;Have a Question?
+About,Homepage,main,About TVCC;Our Team;Community Partners;Success Stories;Contact Us
+Career Services & Counseling,Job Seekers,main,One-on-One Career Counseling;Start with an Orientation;What Career Counseling Covers;Job Clubs;Workspace & Resources;Visit Us
+Workshops & Events,Job Seekers,main,Workshop Topics;How to Register;Job Fairs & Hiring Events
+Job Board,Job Seekers,main,What You'll Find;How to Use the Job Board;Want to Post a Job?;Need Help with Your Search?
+Training Opportunities,Job Seekers,main,WIOA-Funded Training;Forklift & OSHA Safety Training;Typing Tests;Microsoft Office Training;Apprenticeships;Year to Career;Online Training Options
+Resources & Community Support,Job Seekers,main,Crisis Support;Food Resources;Housing Assistance;Financial Assistance;Health & Mental Health;Legal Resources;Disability Support;Childcare;Transportation
+Tip Sheets,Job Seekers,main,Preparation;Resources;Resumes Cover Letters & Applications;Networking & Job Fairs;Interviewing;Follow-Up & Negotiation
+Free Tax Preparation,Job Seekers,main,Who Qualifies;What to Bring;Service Options;Returns We Cannot Accommodate;Volunteer with Us;Make an Appointment
+EDD Information,Job Seekers,main,Unemployment Insurance;Phone Numbers;East Bay EDD Offices;Additional Employment Support;Disability Support;Forms Available at Our Office
+FAQs for Job Seekers,Job Seekers,main,Can you find me a job?;What is WIOA?;Do I need to enroll in WIOA?;What do I get out of enrolling?;Who can enroll?;What is the first step?;How much do services cost?;I just lost my job where do I start?;Can you help pay for training?
+Employer Services,Employers,main,Free Job Listings;Candidate Referrals;Consultation on Job Descriptions;Recruitment Events;Job Fair Participation;Employer Tip Sheets;Contact Our Employer Liaison
+Post a Job,Employers,main,How to Post a Job;Want More Support?;Also Post with Our College Partners
+Hiring Events,Employers,main,Annual Job Fairs;Upcoming Job Fairs;Recruitment Events at TVCC
+Training Assistance,Employers,main,On-the-Job Training (OJT);Customized Training;OSHA Safety Training;Apprenticeship Programs
+Labor Market Information,Employers,main,Local & Regional Resources;State Resources;National Resources;Downloadable Resources
+Small Business Resources,Employers,main,State Resources;Workforce & Training Resources;Tri-Valley Resources;City Resources
+FAQs for Employers,Employers,main,Are your services free?;How do I post a job?;Can you screen candidates?;What is OJT?;How do I join a job fair?;Can I host a recruitment event?;Are you a staffing agency?
+About TVCC,About,main,Our Approach;Funding & Affiliations;Chabot-Las Positas Community College District;Alameda County Workforce Development Board;EastBay Works
+Our Team,About,main,Staff;Affiliates
+Community Partners,About,main,Community Colleges & College Programs;State & County Agencies;Cities;Chambers of Commerce;Libraries;School Districts & Adult Schools;Local Nonprofits
+Success Stories,About,main,Job Seekers;Employers
+Contact Us,About,main,Visit Us;Call Us;Hours;Contact Form;Specific Contacts
+Job Board,,header,External link to Madgex job board
+Workshop Calendar,,header,External link to MyActiveCenter
+Newsletter Signup,,header,External link to Constant Contact
+Search,,header,Site search (MC built-in)
+Job Board,,footer,Link to Madgex job board
+Workshop Calendar,,footer,Link to MyActiveCenter
+Newsletter Signup,,footer,Link to Constant Contact
+Language Toggle,,footer,English / Español`;
+
+const DEEP=`Page,Parent,Section,Bullets
+My Website,—,main,Overview;Featured content;Quick links
+Products,My Website,main,Category A;Category B;Category C
+Services,My Website,main,Overview;How It Works;Pricing;FAQs
+About,My Website,main,Our Story;Team;Careers;Contact
+Category A,Products,main,Item A1;Item A2;Item A3
+Category B,Products,main,Item B1;Item B2;Item B3
+Item A1,Category A,main,Description;Specifications;Pricing
+Item A2,Category A,main,Description;Specifications;Pricing
+Item A1 Detail,Item A1,main,Full specs;Download datasheet;Request quote
+Service Overview,Services,main,What we offer;Who we serve;Case studies
+How It Works,Services,main,Step 1;Step 2;Step 3
+Pricing,Services,main,Starter;Professional;Enterprise
+Our Story,About,main,Mission;History;Values
+Team,About,main,Leadership;Advisors
+Home,,header,Logo / home link
+Search,,header,Site search
+Account,,header,Login / account
+Facebook,,footer,Link to Facebook
+Privacy Policy,,footer,Privacy policy
+Terms of Use,,footer,Terms and conditions`;
+
+const COLORS=[
+  {fill:'#EEEDFE',stroke:'#534AB7',title:'#3C3489',bullet:'#534AB7',sep:'#AFA9EC',toggle:'#534AB7'},
+  {fill:'#E1F5EE',stroke:'#0F6E56',title:'#085041',bullet:'#0F6E56',sep:'#5DCAA5',toggle:'#0F6E56'},
+  {fill:'#F1EFE8',stroke:'#888780',title:'#444441',bullet:'#5F5E5A',sep:'#B4B2A9',toggle:'#888780'},
+  {fill:'#FAECE7',stroke:'#993C1D',title:'#712B13',bullet:'#993C1D',sep:'#F0997B',toggle:'#993C1D'},
+  {fill:'#EAF3DE',stroke:'#3B6D11',title:'#27500A',bullet:'#3B6D11',sep:'#97C459',toggle:'#3B6D11'},
+];
+const ZONE_COLOR={fill:'#FFFDF9',stroke:'#C8C6BC',title:'#555',bullet:'#666',sep:'#ddd'};
+
+const BOX_W=164,H_GAP=22,H_ROW=36,V_GAP=8,V_DOWN=20,V_RIGHT=20;
+const MARGIN=32,ZONE_GAP=36,ZONE_HDR=22;
+
+function col(d){return COLORS[Math.min(d,COLORS.length-1)];}
+
+function parseCSV(raw){
+  const lines=raw.trim().split('\n').filter(l=>l.trim());
+  if(lines.length<2) throw new Error('Need a header row and at least one data row.');
+  const hdr=lines[0].split(',').map(h=>h.trim().toLowerCase());
+  const pi=hdr.indexOf('page'),pai=hdr.indexOf('parent'),si=hdr.indexOf('section'),bi=hdr.indexOf('bullets');
+  if(pi<0||pai<0||bi<0) throw new Error('CSV must have columns: Page, Parent, Section, Bullets');
+  return lines.slice(1).map(l=>{
+    const parts=l.split(',');
+    return{
+      page:parts[pi]?.trim(),
+      parent:parts[pai]?.trim()||'',
+      section:si>=0?(parts[si]?.trim()||'main'):'main',
+      bullets:parts.slice(bi).join(',').trim().split(';').map(b=>b.trim()).filter(Boolean)
+    };
+  }).filter(r=>r.page);
+}
+
+function buildTree(rows){
+  const map={};
+  rows.filter(r=>r.section==='main').forEach(r=>{
+    map[r.page]={...r,children:[],vmode:true,dx:0,dy:0};
+  });
+  let root=null;
+  rows.filter(r=>r.section==='main').forEach(r=>{
+    const isRoot=!r.parent||r.parent==='—'||r.parent==='-'||!map[r.parent];
+    if(isRoot){if(!root){root=map[r.page];root.vmode=false;}}
+    else if(map[r.parent])map[r.parent].children.push(map[r.page]);
+  });
+  return{
+    root,
+    header:rows.filter(r=>r.section==='header'),
+    footer:rows.filter(r=>r.section==='footer')
+  };
+}
+
+const ruler=document.createElement('div');
+ruler.style.cssText='position:fixed;visibility:hidden;pointer-events:none;width:150px;font-size:7.5px;line-height:1.5;word-break:break-word;padding:0 7px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif';
+document.body.appendChild(ruler);
+
+function measureBH(bullets){
+  ruler.innerHTML='';
+  bullets.forEach(b=>{
+    const d=document.createElement('div');d.textContent='• '+b;ruler.appendChild(d);
+  });
+  return 18+5+4+(bullets.length?ruler.offsetHeight:0)+8;
+}
+
+function measureTree(node,depth){
+  node.depth=depth;
+  node.bh=measureBH(node.bullets);
+  node.children.forEach(c=>measureTree(c,depth+1));
+  if(!node.children.length){node.tw=BOX_W;node.th=node.bh;return;}
+  if(node.vmode){
+    node.tw=BOX_W+V_RIGHT+Math.max(...node.children.map(c=>c.tw));
+    node.th=node.bh+V_DOWN+node.children.reduce((s,c)=>s+c.th,0)+(node.children.length-1)*V_GAP;
+  } else {
+    node.tw=Math.max(BOX_W,node.children.reduce((s,c)=>s+c.tw,0)+(node.children.length-1)*H_GAP);
+    node.th=node.bh+H_ROW+Math.max(...node.children.map(c=>c.th));
+  }
+}
+
+function placeTree(node,x,y){
+  node.baseX=x;node.baseY=y;
+  node.x=x+(node.dx||0);node.y=y+(node.dy||0);
+  if(!node.children.length)return;
+  if(node.vmode){
+    const cx=node.baseX+BOX_W/2+V_RIGHT;
+    let cy=node.baseY+node.bh+V_DOWN;
+    node.children.forEach(c=>{placeTree(c,cx,cy);cy+=c.th+V_GAP;});
+  } else {
+    const totalCW=node.children.reduce((s,c)=>s+c.tw,0)+(node.children.length-1)*H_GAP;
+    let cx=x+(node.tw-totalCW)/2;
+    const cy=y+node.bh+H_ROW;
+    node.children.forEach(c=>{placeTree(c,cx,cy);cx+=c.tw+H_GAP;});
+  }
+}
+
+function treeExtent(node){
+  let mx=node.x+BOX_W,my=node.y+node.bh;
+  node.children.forEach(c=>{const[ex,ey]=treeExtent(c);mx=Math.max(mx,ex);my=Math.max(my,ey);});
+  return[mx,my];
+}
+
+let currentTree=null;
+let svgEl=null;
+
+function updateConnectors(){
+  if(!svgEl||!currentTree||!currentTree.root)return;
+  while(svgEl.firstChild)svgEl.removeChild(svgEl.firstChild);
+  drawConnectors(currentTree.root,svgEl);
+}
+
+function drawConnectors(node,svg){
+  if(!node.children.length)return;
+  if(node.vmode){
+    const px=node.x+BOX_W/2,pby=node.y+node.bh;
+    node.children.forEach(c=>{
+      const cmy=c.y+c.bh/2;
+      const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d',`M${px},${pby} L${px},${cmy} L${c.x},${cmy}`);
+      path.setAttribute('fill','none');path.setAttribute('stroke','#C0BDB6');path.setAttribute('stroke-width','0.8');
+      svg.appendChild(path);
+    });
+  } else {
+    const mx=node.x+BOX_W/2,by=node.y+node.bh,my=by+H_ROW/2;
+    const ln=(x1,y1,x2,y2)=>{
+      const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+      l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
+      l.setAttribute('stroke','#C0BDB6');l.setAttribute('stroke-width','0.8');svg.appendChild(l);
+    };
+    ln(mx,by,mx,my);
+    if(node.children.length>1){
+      ln(node.children[0].x+BOX_W/2,my,node.children[node.children.length-1].x+BOX_W/2,my);
+    }
+    node.children.forEach(c=>ln(c.x+BOX_W/2,my,c.x+BOX_W/2,c.y));
+  }
+  node.children.forEach(c=>drawConnectors(c,svg));
+}
+
+function makeDraggable(el,node){
+  let startMX,startMY,startDX,startDY;
+  el.addEventListener('mousedown',e=>{
+    if(e.target.classList.contains('sm-toggle'))return;
+    e.preventDefault();
+    startMX=e.clientX;startMY=e.clientY;
+    startDX=node.dx||0;startDY=node.dy||0;
+    el.classList.add('dragging');
+    const onMove=e=>{
+      node.dx=startDX+(e.clientX-startMX);
+      node.dy=startDY+(e.clientY-startMY);
+      node.x=node.baseX+node.dx;node.y=node.baseY+node.dy;
+      el.style.left=node.x+'px';el.style.top=node.y+'px';
+      updateConnectors();
+    };
+    const onUp=()=>{
+      el.classList.remove('dragging');
+      document.removeEventListener('mousemove',onMove);
+      document.removeEventListener('mouseup',onUp);
+    };
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+  });
+}
+
+function renderBox(node,container,onToggle){
+  const c=col(node.depth);
+  const el=document.createElement('div');
+  el.className='sm-box';
+  el.style.cssText=`left:${node.x}px;top:${node.y}px;background:${c.fill};border-color:${c.stroke}`;
+
+  const title=document.createElement('div');
+  title.className='sm-title'+(node.depth===0?' root':'');
+  title.style.color=c.title;
+  title.textContent=node.page;
+  el.appendChild(title);
+
+  if(node.children.length){
+    const tog=document.createElement('button');
+    tog.className='sm-toggle';
+    tog.style.color=c.toggle;
+    tog.title=(node.vmode?'Switch to horizontal layout':'Switch to vertical layout');
+    tog.textContent=node.vmode?'↔':'↕';
+    tog.addEventListener('click',e=>{
+      e.stopPropagation();
+      node.vmode=!node.vmode;
+      onToggle();
+    });
+    el.appendChild(tog);
+  }
+
+  const sep=document.createElement('div');
+  sep.className='sm-sep';sep.style.background=c.sep;el.appendChild(sep);
+
+  node.bullets.forEach(b=>{
+    const d=document.createElement('div');
+    d.className='sm-bullet';d.style.color=c.bullet;d.textContent='• '+b;el.appendChild(d);
+  });
+
+  makeDraggable(el,node);
+  container.appendChild(el);
+  node.children.forEach(child=>renderBox(child,container,onToggle));
+}
+
+function renderZone(items,container,label,yStart,totalW){
+  if(!items.length)return 0;
+  const lbl=document.createElement('div');
+  lbl.className='zone-label';
+  lbl.style.cssText=`top:${yStart}px;left:${MARGIN}px`;
+  lbl.textContent=label;
+  container.appendChild(lbl);
+  const rule=document.createElement('hr');
+  rule.className='zone-rule';
+  rule.style.cssText=`top:${yStart+15}px;left:${MARGIN}px;width:${totalW-MARGIN*2}px`;
+  container.appendChild(rule);
+  let x=MARGIN;const boxY=yStart+ZONE_HDR+4;let maxBH=0;
+  items.forEach(item=>{
+    const bh=measureBH(item.bullets);maxBH=Math.max(maxBH,bh);
+    const c=ZONE_COLOR;
+    const el=document.createElement('div');
+    el.className='sm-box';
+    el.style.cssText=`left:${x}px;top:${boxY}px;background:${c.fill};border-color:${c.stroke}`;
+    const title=document.createElement('div');
+    title.className='sm-title';title.style.color=c.title;title.textContent=item.page;el.appendChild(title);
+    const sep2=document.createElement('div');
+    sep2.className='sm-sep';sep2.style.background=c.sep;el.appendChild(sep2);
+    item.bullets.forEach(b=>{
+      const d=document.createElement('div');
+      d.className='sm-bullet';d.style.color=c.bullet;d.textContent='• '+b;el.appendChild(d);
+    });
+    const fakeNode={x,y:boxY,baseX:x,baseY:boxY,dx:0,dy:0};
+    makeDraggable(el,fakeNode);
+    container.appendChild(el);
+    x+=BOX_W+H_GAP;
+  });
+  return ZONE_HDR+6+maxBH;
+}
+
+function render(){
+  const container=document.getElementById('map');
+  container.innerHTML='';
+  const{root,header,footer}=currentTree;
+
+  measureTree(root,0);
+
+  const totalW=Math.max(
+    root.tw+MARGIN*2,
+    header.length*(BOX_W+H_GAP)+MARGIN,
+    footer.length*(BOX_W+H_GAP)+MARGIN
+  );
+
+  let cy=MARGIN;
+
+  const hdrH=renderZone(header,container,'Header / Utility Nav',cy,totalW);
+  if(hdrH)cy+=hdrH+ZONE_GAP;
+
+  // Main site label
+  const mainLbl=document.createElement('div');
+  mainLbl.className='zone-label';
+  mainLbl.style.cssText=`top:${cy}px;left:${MARGIN}px`;
+  mainLbl.textContent='Main Site';
+  container.appendChild(mainLbl);
+  const mainRule=document.createElement('hr');
+  mainRule.className='zone-rule';
+  mainRule.style.cssText=`top:${cy+15}px;left:${MARGIN}px;width:${totalW-MARGIN*2}px`;
+  container.appendChild(mainRule);
+  cy+=ZONE_HDR+4;
+
+  placeTree(root,MARGIN,cy);
+  if(root.children.length&&!root.vmode){
+    const fc=root.children[0],lc=root.children[root.children.length-1];
+    root.baseX=Math.round((fc.x+lc.x+BOX_W)/2-BOX_W/2);
+    root.x=root.baseX+(root.dx||0);
+  }
+
+  const[mx,my]=treeExtent(root);
+  cy=my+ZONE_GAP;
+
+  const ftrH=renderZone(footer,container,'Footer Nav',cy,totalW);
+  const finalH=cy+(ftrH||0)+MARGIN;
+  const finalW=Math.max(mx+MARGIN,totalW);
+
+  container.style.width=finalW+'px';
+  container.style.height=finalH+'px';
+
+  svgEl=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svgEl.classList.add('connectors');
+  svgEl.setAttribute('width',finalW);
+  svgEl.setAttribute('height',finalH);
+  container.insertBefore(svgEl,container.firstChild);
+
+  drawConnectors(root,svgEl);
+  renderBox(root,container,()=>render());
+
+  document.getElementById('export-area').style.display='none';
+}
+
+function generate(){
+  const raw=document.getElementById('csv').value.trim();
+  const errEl=document.getElementById('err');
+  errEl.style.display='none';
+  if(!raw){errEl.textContent='Paste CSV data first.';errEl.style.display='block';return;}
+  try{
+    const rows=parseCSV(raw);
+    currentTree=buildTree(rows);
+    if(!currentTree.root) throw new Error('No root node found. Make sure one row has Parent = —');
+    render();
+  }catch(e){
+    errEl.textContent=e.message;errEl.style.display='block';
+  }
+}
+
+function buildSVGString(){
+  const map=document.getElementById('map');
+  const W=parseInt(map.style.width),H=parseInt(map.style.height);
+  const ns='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('xmlns',ns);
+  svg.setAttribute('width',W);svg.setAttribute('height',H);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+  const bg=document.createElementNS(ns,'rect');
+  bg.setAttribute('width',W);bg.setAttribute('height',H);bg.setAttribute('fill','#f0efeb');
+  svg.appendChild(bg);
+
+  const connSVG=map.querySelector('svg.connectors');
+  if(connSVG)Array.from(connSVG.children).forEach(child=>svg.appendChild(child.cloneNode(true)));
+
+  map.querySelectorAll('.zone-label').forEach(el=>{
+    const t=document.createElementNS(ns,'text');
+    t.setAttribute('x',parseInt(el.style.left));
+    t.setAttribute('y',parseInt(el.style.top)+9);
+    t.setAttribute('font-size','9');t.setAttribute('font-weight','700');t.setAttribute('fill','#aaa');
+    t.setAttribute('font-family','system-ui,sans-serif');t.setAttribute('letter-spacing','0.08em');
+    t.textContent=el.textContent;svg.appendChild(t);
+  });
+
+  map.querySelectorAll('.zone-rule').forEach(el=>{
+    const top=parseInt(el.style.top),left=parseInt(el.style.left),w=parseInt(el.style.width);
+    const line=document.createElementNS(ns,'line');
+    line.setAttribute('x1',left);line.setAttribute('y1',top);
+    line.setAttribute('x2',left+w);line.setAttribute('y2',top);
+    line.setAttribute('stroke','#ddd');line.setAttribute('stroke-width','1.5');
+    line.setAttribute('stroke-dasharray','5 4');svg.appendChild(line);
+  });
+
+  map.querySelectorAll('.sm-box').forEach(box=>{
+    const x=parseInt(box.style.left),y=parseInt(box.style.top),bh=box.offsetHeight;
+    const g=document.createElementNS(ns,'g');
+
+    const rect=document.createElementNS(ns,'rect');
+    rect.setAttribute('x',x);rect.setAttribute('y',y);
+    rect.setAttribute('width',BOX_W);rect.setAttribute('height',bh);
+    rect.setAttribute('rx','5');rect.setAttribute('fill',box.style.background);
+    rect.setAttribute('stroke',box.style.borderColor);rect.setAttribute('stroke-width','1');
+    g.appendChild(rect);
+
+    const titleEl=box.querySelector('.sm-title');
+    if(titleEl){
+      const t=document.createElementNS(ns,'text');
+      t.setAttribute('x',x+7);t.setAttribute('y',y+14);
+      t.setAttribute('font-size',titleEl.classList.contains('root')?'9.5':'8.5');
+      t.setAttribute('font-weight','600');t.setAttribute('fill',titleEl.style.color);
+      t.setAttribute('font-family','system-ui,sans-serif');
+      t.textContent=titleEl.textContent;g.appendChild(t);
+    }
+
+    const sepEl=box.querySelector('.sm-sep');
+    if(sepEl){
+      const line=document.createElementNS(ns,'line');
+      line.setAttribute('x1',x+4);line.setAttribute('y1',y+24);
+      line.setAttribute('x2',x+BOX_W-4);line.setAttribute('y2',y+24);
+      line.setAttribute('stroke',sepEl.style.background);line.setAttribute('stroke-width','0.5');
+      g.appendChild(line);
+    }
+
+    let bulletY=y+28;
+    box.querySelectorAll('.sm-bullet').forEach(bEl=>{
+      bulletY+=9;
+      const t=document.createElementNS(ns,'text');
+      t.setAttribute('x',x+7);t.setAttribute('y',bulletY);
+      t.setAttribute('font-size','7.5');t.setAttribute('fill',bEl.style.color);
+      t.setAttribute('font-family','system-ui,sans-serif');
+      t.textContent=bEl.textContent;g.appendChild(t);
+      bulletY+=3;
+    });
+
+    svg.appendChild(g);
+  });
+
+  return new XMLSerializer().serializeToString(svg);
+}
+
+function buildExport(){
+  if(!currentTree){alert('Generate a sitemap first.');return;}
+  const svgStr=buildSVGString();
+  const encoded='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgStr);
+
+  const svgLink=document.getElementById('svg-link');
+  svgLink.href=encoded;
+  svgLink.download='sitemap.svg';
+
+  const map=document.getElementById('map');
+  const W=parseInt(map.style.width),H=parseInt(map.style.height);
+  const scale=2;
+  const img=new Image();
+  img.onload=()=>{
+    const canvas=document.createElement('canvas');
+    canvas.width=W*scale;canvas.height=H*scale;
+    const ctx=canvas.getContext('2d');
+    ctx.scale(scale,scale);ctx.drawImage(img,0,0);
+    const pngLink=document.getElementById('png-link');
+    pngLink.href=canvas.toDataURL('image/png');
+    pngLink.download='sitemap.png';
+    document.getElementById('export-area').style.display='flex';
+  };
+  img.src=encoded;
+}
+
+function loadTVCC(){document.getElementById('csv').value=TVCC;generate();}
+function loadDeep(){document.getElementById('csv').value=DEEP;generate();}
+
+// Auto-load TVCC on start
+loadTVCC();
+</script>
+</body>
+</html>
