@@ -370,7 +370,8 @@ footer {
   <h1>Sitemapper</h1>
   <button class="btn btn-primary" onclick="generate()">Generate</button>
   <div class="toolbar-sep"></div>
-  <button class="btn btn-success" onclick="buildExport()">Prepare Export</button>
+  <button class="btn btn-success" onclick="downloadSVG()">↓ SVG</button>
+  <button class="btn btn-success" onclick="downloadPNG()">↓ PNG</button>
   <div class="toolbar-sep"></div>
   <button class="btn" onclick="tidyUp()">Tidy Up</button>
   <div class="toolbar-sep"></div>
@@ -397,12 +398,19 @@ footer {
 <main>
   <div id="sidebar">
     <div id="sidebar-tabs">
-      <button class="tab-btn active" onclick="switchTab('data')">Data</button>
+      <button class="tab-btn active" onclick="switchTab('data')">Content</button>
       <button class="tab-btn" onclick="switchTab('design')">Design</button>
     </div>
     <div id="sidebar-inner">
 
       <div id="tab-data" class="tab-panel active">
+
+        <div>
+          <h2 style="margin-bottom:6px">Sitemap Name</h2>
+          <input type="text" id="sitemap-name" placeholder="My Sitemap"
+            style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;font-family:inherit;background:#fafafa;"
+            oninput="document.getElementById('map-title').value=this.value">
+        </div>
 
         <div class="hint">
           Columns: <code>Page</code>, <code>Parent</code>, <code>Section</code>, <code>Bullets</code><br>
@@ -422,13 +430,6 @@ footer {
           </div>
         </div>
 
-        <div id="export-area">
-          <p>Click a link to open in a new tab, then save with <strong>Cmd+S</strong> (Mac) or <strong>Ctrl+S</strong> (Windows). Or right-click → Save link as.</p>
-          <div class="export-links">
-            <a id="svg-link" target="_blank">Open SVG ↗</a>
-            <a id="png-link" target="_blank">Open PNG 2× ↗</a>
-          </div>
-        </div>
 
       </div><!-- #tab-data -->
 
@@ -480,7 +481,8 @@ footer {
 
   <div id="canvas-area">
     <div id="map-title-wrap">
-      <input id="map-title" type="text" placeholder="Sitemap title…" spellcheck="false">
+      <input id="map-title" type="text" placeholder="Sitemap title…" spellcheck="false"
+        oninput="document.getElementById('sitemap-name').value=this.value">
     </div>
     <div id="map"></div>
   </div>
@@ -1074,7 +1076,6 @@ function render(){
 
   drawConnectors(root,svgEl);
 
-  document.getElementById('export-area').style.display='none';
 }
 
 function generate(){
@@ -1086,117 +1087,190 @@ function generate(){
     const rows=parseCSV(raw);
     currentTree=buildTree(rows);
     if(!currentTree.root) throw new Error('No root node found. Make sure one row has Parent = —');
+    // Auto-populate name from root page if blank
+    if(!document.getElementById('sitemap-name').value.trim()){
+      const name=currentTree.root.page||'Sitemap';
+      document.getElementById('sitemap-name').value=name;
+      document.getElementById('map-title').value=name;
+    }
     render();
   }catch(e){
     errEl.textContent=e.message;errEl.style.display='block';
   }
 }
 
+function wrapSVGText(text,maxWidth,fontSize){
+  const c=document.createElement('canvas');
+  const ctx=c.getContext('2d');
+  ctx.font=`${fontSize}px system-ui,-apple-system,sans-serif`;
+  const words=text.split(' ');
+  const lines=[];let line='';
+  for(const w of words){
+    const test=line?line+' '+w:w;
+    if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=w;}
+    else line=test;
+  }
+  if(line)lines.push(line);
+  return lines.length?lines:[text];
+}
+
 function buildSVGString(){
   const map=document.getElementById('map');
-  const W=parseInt(map.style.width),H=parseInt(map.style.height);
+  const mapW=parseInt(map.style.width),mapH=parseInt(map.style.height);
   const ns='http://www.w3.org/2000/svg';
+
+  const titleVal=document.getElementById('map-title').value.trim();
+  const TITLE_PAD_T=24,TITLE_FS=20,TITLE_GAP=16;
+  const titleAreaH=titleVal?TITLE_PAD_T+TITLE_FS+TITLE_GAP:0;
+  const totalW=mapW,totalH=titleAreaH+mapH;
+
   const svg=document.createElementNS(ns,'svg');
   svg.setAttribute('xmlns',ns);
-  svg.setAttribute('width',W);svg.setAttribute('height',H);
-  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.setAttribute('width',totalW);svg.setAttribute('height',totalH);
+  svg.setAttribute('viewBox',`0 0 ${totalW} ${totalH}`);
 
+  // White background
   const bg=document.createElementNS(ns,'rect');
-  bg.setAttribute('width',W);bg.setAttribute('height',H);bg.setAttribute('fill','#f0efeb');
+  bg.setAttribute('width',totalW);bg.setAttribute('height',totalH);bg.setAttribute('fill','#ffffff');
   svg.appendChild(bg);
 
-  const connSVG=map.querySelector('svg.connectors');
-  if(connSVG)Array.from(connSVG.children).forEach(child=>svg.appendChild(child.cloneNode(true)));
+  // Sitemap title
+  if(titleVal){
+    const t=document.createElementNS(ns,'text');
+    t.setAttribute('x',MARGIN);t.setAttribute('y',TITLE_PAD_T+TITLE_FS);
+    t.setAttribute('font-size',TITLE_FS);t.setAttribute('font-weight','700');
+    t.setAttribute('fill','#1a1a1a');t.setAttribute('font-family','system-ui,-apple-system,sans-serif');
+    t.textContent=titleVal;svg.appendChild(t);
+  }
 
+  // Group for map content, offset by title area
+  const g=document.createElementNS(ns,'g');
+  g.setAttribute('transform',`translate(0,${titleAreaH})`);
+
+  // Connectors — clone existing SVG paths/lines directly
+  const connSVG=map.querySelector('svg.connectors');
+  if(connSVG)Array.from(connSVG.children).forEach(child=>g.appendChild(child.cloneNode(true)));
+
+  // Zone labels
   map.querySelectorAll('.zone-label').forEach(el=>{
+    const cs=getComputedStyle(el);
+    const fSize=parseFloat(cs.fontSize);
     const t=document.createElementNS(ns,'text');
     t.setAttribute('x',parseInt(el.style.left));
-    t.setAttribute('y',parseInt(el.style.top)+9);
-    t.setAttribute('font-size','9');t.setAttribute('font-weight','700');t.setAttribute('fill','#aaa');
-    t.setAttribute('font-family','system-ui,sans-serif');t.setAttribute('letter-spacing','0.08em');
-    t.textContent=el.textContent;svg.appendChild(t);
+    t.setAttribute('y',parseInt(el.style.top)+fSize);
+    t.setAttribute('font-size',fSize);t.setAttribute('font-weight','700');
+    t.setAttribute('fill','#aaa');t.setAttribute('letter-spacing','0.08em');
+    t.setAttribute('font-family','system-ui,-apple-system,sans-serif');
+    t.textContent=el.textContent;g.appendChild(t);
   });
 
+  // Zone rules
   map.querySelectorAll('.zone-rule').forEach(el=>{
     const top=parseInt(el.style.top),left=parseInt(el.style.left),w=parseInt(el.style.width);
     const line=document.createElementNS(ns,'line');
     line.setAttribute('x1',left);line.setAttribute('y1',top);
     line.setAttribute('x2',left+w);line.setAttribute('y2',top);
     line.setAttribute('stroke','#ddd');line.setAttribute('stroke-width','1.5');
-    line.setAttribute('stroke-dasharray','5 4');svg.appendChild(line);
+    line.setAttribute('stroke-dasharray','5 4');g.appendChild(line);
   });
 
+  // Read live font sizes from CSS vars
+  const rootCS=getComputedStyle(document.documentElement);
+  const titleSizePx=parseFloat(rootCS.getPropertyValue('--sm-title-size'))||10;
+  const rootTitleSizePx=parseFloat(rootCS.getPropertyValue('--sm-root-title-size'))||11;
+  const bulletSizePx=parseFloat(rootCS.getPropertyValue('--sm-bullet-size'))||10;
+  const FONT='system-ui,-apple-system,sans-serif';
+
+  // Boxes
   map.querySelectorAll('.sm-box').forEach(box=>{
-    const x=parseInt(box.style.left),y=parseInt(box.style.top),bh=box.offsetHeight;
-    const g=document.createElementNS(ns,'g');
+    const bx=parseInt(box.style.left),by=parseInt(box.style.top),bh=box.offsetHeight;
+    const bg2=document.createElementNS(ns,'g');
 
     const rect=document.createElementNS(ns,'rect');
-    rect.setAttribute('x',x);rect.setAttribute('y',y);
+    rect.setAttribute('x',bx);rect.setAttribute('y',by);
     rect.setAttribute('width',BOX_W);rect.setAttribute('height',bh);
     rect.setAttribute('rx','5');rect.setAttribute('fill',box.style.background);
     rect.setAttribute('stroke',box.style.borderColor);rect.setAttribute('stroke-width','1');
-    g.appendChild(rect);
+    bg2.appendChild(rect);
 
     const titleEl=box.querySelector('.sm-title');
     if(titleEl){
+      const isRoot=titleEl.classList.contains('root');
+      const fSize=isRoot?rootTitleSizePx:titleSizePx;
+      // Baseline = box top + title offsetTop + padding-top + text ascent
+      const baseline=by+titleEl.offsetTop+5+Math.ceil(fSize*0.85);
       const t=document.createElementNS(ns,'text');
-      t.setAttribute('x',x+7);t.setAttribute('y',y+14);
-      t.setAttribute('font-size',titleEl.classList.contains('root')?'9.5':'8.5');
-      t.setAttribute('font-weight','600');t.setAttribute('fill',titleEl.style.color);
-      t.setAttribute('font-family','system-ui,sans-serif');
-      t.textContent=titleEl.textContent;g.appendChild(t);
+      t.setAttribute('x',bx+7);t.setAttribute('y',baseline);
+      t.setAttribute('font-size',fSize);t.setAttribute('font-weight','600');
+      t.setAttribute('fill',titleEl.style.color);t.setAttribute('font-family',FONT);
+      t.textContent=titleEl.textContent;bg2.appendChild(t);
     }
 
     const sepEl=box.querySelector('.sm-sep');
     if(sepEl){
+      const sepY=by+sepEl.offsetTop;
       const line=document.createElementNS(ns,'line');
-      line.setAttribute('x1',x+4);line.setAttribute('y1',y+24);
-      line.setAttribute('x2',x+BOX_W-4);line.setAttribute('y2',y+24);
+      line.setAttribute('x1',bx+4);line.setAttribute('y1',sepY);
+      line.setAttribute('x2',bx+BOX_W-4);line.setAttribute('y2',sepY);
       line.setAttribute('stroke',sepEl.style.background);line.setAttribute('stroke-width','0.5');
-      g.appendChild(line);
+      bg2.appendChild(line);
     }
 
-    let bulletY=y+28;
     box.querySelectorAll('.sm-bullet').forEach(bEl=>{
-      bulletY+=9;
-      const t=document.createElementNS(ns,'text');
-      t.setAttribute('x',x+7);t.setAttribute('y',bulletY);
-      t.setAttribute('font-size','7.5');t.setAttribute('fill',bEl.style.color);
-      t.setAttribute('font-family','system-ui,sans-serif');
-      t.textContent=bEl.textContent;g.appendChild(t);
-      bulletY+=3;
+      const elTop=by+bEl.offsetTop;
+      const lineH=bulletSizePx*1.5;
+      const maxW=bEl.offsetWidth||BOX_W-14;
+      const lines=wrapSVGText(bEl.textContent,maxW,bulletSizePx);
+      lines.forEach((ln,i)=>{
+        const t=document.createElementNS(ns,'text');
+        t.setAttribute('x',bx+7);
+        t.setAttribute('y',elTop+Math.ceil(bulletSizePx*0.85)+i*lineH);
+        t.setAttribute('font-size',bulletSizePx);t.setAttribute('fill',bEl.style.color);
+        t.setAttribute('font-family',FONT);t.textContent=ln;bg2.appendChild(t);
+      });
     });
 
-    svg.appendChild(g);
+    g.appendChild(bg2);
   });
 
+  svg.appendChild(g);
   return new XMLSerializer().serializeToString(svg);
 }
 
-function buildExport(){
+function getExportFilename(){
+  const title=document.getElementById('map-title').value.trim();
+  return title?title.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase():'sitemap';
+}
+
+function downloadSVG(){
   if(!currentTree){alert('Generate a sitemap first.');return;}
-  const svgStr=buildSVGString();
-  const encoded='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgStr);
+  const a=document.createElement('a');
+  a.href='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(buildSVGString());
+  a.download=getExportFilename()+'.svg';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
 
-  const svgLink=document.getElementById('svg-link');
-  svgLink.href=encoded;
-  svgLink.download='sitemap.svg';
-
+function downloadPNG(){
+  if(!currentTree){alert('Generate a sitemap first.');return;}
   const map=document.getElementById('map');
-  const W=parseInt(map.style.width),H=parseInt(map.style.height);
+  const mapW=parseInt(map.style.width),mapH=parseInt(map.style.height);
+  const titleVal=document.getElementById('map-title').value.trim();
+  const titleAreaH=titleVal?60:0;
+  const totalW=mapW,totalH=titleAreaH+mapH;
   const scale=2;
   const img=new Image();
   img.onload=()=>{
     const canvas=document.createElement('canvas');
-    canvas.width=W*scale;canvas.height=H*scale;
+    canvas.width=totalW*scale;canvas.height=totalH*scale;
     const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);
     ctx.scale(scale,scale);ctx.drawImage(img,0,0);
-    const pngLink=document.getElementById('png-link');
-    pngLink.href=canvas.toDataURL('image/png');
-    pngLink.download='sitemap.png';
-    document.getElementById('export-area').style.display='flex';
+    const a=document.createElement('a');
+    a.href=canvas.toDataURL('image/png');
+    a.download=getExportFilename()+'.png';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
   };
-  img.src=encoded;
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(buildSVGString());
 }
 
 function loadTVCC(){document.getElementById('csv').value=TVCC;generate();}
