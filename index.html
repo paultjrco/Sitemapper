@@ -191,6 +191,11 @@ textarea:focus { outline: none; border-color: #999; }
   -webkit-user-select: none;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
+.sm-box.selected {
+  outline: 2px solid #4A90D9;
+  outline-offset: 1px;
+  z-index: 500;
+}
 .sm-title {
   font-size: 8.5px;
   font-weight: 600;
@@ -501,28 +506,67 @@ function drawConnectors(node,svg){
   node.children.forEach(c=>drawConnectors(c,svg));
 }
 
+const selectedNodes=new Map(); // node -> {el}
+
+function setSelected(node,el,val){
+  if(val){selectedNodes.set(node,el);el.classList.add('selected');}
+  else{selectedNodes.delete(node);el.classList.remove('selected');}
+}
+
+function clearSelection(){
+  selectedNodes.forEach((_,n)=>selectedNodes.get(n).classList.remove('selected'));
+  selectedNodes.clear();
+}
+
 function makeDraggable(el,node){
-  let startMX,startMY,startDX,startDY;
+  let startMX,startMY,moved;
+  let dragGroup; // Map of node -> {el, dx, dy} snapshotted at mousedown
+
   el.addEventListener('mousedown',e=>{
     if(e.target.classList.contains('sm-toggle'))return;
     e.preventDefault();
+    moved=false;
     startMX=e.clientX;startMY=e.clientY;
-    startDX=node.dx||0;startDY=node.dy||0;
-    el.classList.add('dragging');
-    const onMove=e=>{
-      node.dx=startDX+(e.clientX-startMX);
-      node.dy=startDY+(e.clientY-startMY);
-      node.x=node.baseX+node.dx;node.y=node.baseY+node.dy;
-      el.style.left=node.x+'px';el.style.top=node.y+'px';
+
+    // Determine drag group WITHOUT changing selection
+    if(selectedNodes.has(node)){
+      dragGroup=new Map();
+      selectedNodes.forEach((nel,n)=>dragGroup.set(n,{el:nel,dx:n.dx||0,dy:n.dy||0}));
+    } else {
+      dragGroup=new Map([[node,{el,dx:node.dx||0,dy:node.dy||0}]]);
+    }
+
+    const onMove=ev=>{
+      moved=true;
+      const ddx=ev.clientX-startMX, ddy=ev.clientY-startMY;
+      dragGroup.forEach((s,n)=>{
+        n.dx=s.dx+ddx; n.dy=s.dy+ddy;
+        n.x=n.baseX+n.dx; n.y=n.baseY+n.dy;
+        s.el.style.left=n.x+'px';
+        s.el.style.top=n.y+'px';
+        s.el.classList.add('dragging');
+      });
       updateConnectors();
     };
     const onUp=()=>{
-      el.classList.remove('dragging');
+      dragGroup.forEach(s=>s.el.classList.remove('dragging'));
       document.removeEventListener('mousemove',onMove);
       document.removeEventListener('mouseup',onUp);
     };
     document.addEventListener('mousemove',onMove);
     document.addEventListener('mouseup',onUp);
+  });
+
+  el.addEventListener('click',e=>{
+    if(e.target.classList.contains('sm-toggle'))return;
+    if(moved)return;
+    if(e.shiftKey){
+      setSelected(node,el,!selectedNodes.has(node));
+    } else {
+      const alreadySoleSelected=selectedNodes.size===1&&selectedNodes.has(node);
+      clearSelection();
+      if(!alreadySoleSelected) setSelected(node,el,true);
+    }
   });
 }
 
@@ -600,6 +644,7 @@ function renderZone(items,container,label,yStart,totalW){
 }
 
 function render(){
+  clearSelection();
   const container=document.getElementById('map');
   container.innerHTML='';
   const{root,header,footer}=currentTree;
