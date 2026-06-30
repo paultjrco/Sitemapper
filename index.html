@@ -163,12 +163,31 @@ textarea:focus { outline: none; border-color: #999; }
   flex: 1;
   overflow: auto;
   padding: 20px;
-  background: #f0efeb;
+  background: #fff;
 }
+
+#map-title-wrap {
+  margin-bottom: 16px;
+}
+
+#map-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  font-family: inherit;
+  padding: 2px 0;
+  border-bottom: 2px solid transparent;
+}
+#map-title:focus { border-bottom-color: #ddd; }
+#map-title::placeholder { color: #ccc; }
 
 #map {
   position: relative;
-  background: #f0efeb;
+  background: #fff;
 }
 
 .sm-box {
@@ -197,14 +216,14 @@ textarea:focus { outline: none; border-color: #999; }
   z-index: 500;
 }
 .sm-title {
-  font-size: 8.5px;
+  font-size: var(--sm-title-size, 10px);
   font-weight: 600;
   padding: 5px 20px 3px 7px;
   line-height: 1.3;
 }
-.sm-title.root { font-size: 9.5px; }
+.sm-title.root { font-size: var(--sm-root-title-size, 11px); }
 .sm-sep { height: 0.5px; margin: 0 4px 4px; }
-.sm-bullet { font-size: 7.5px; padding: 0 7px; line-height: 1.5; word-break: break-word; }
+.sm-bullet { font-size: var(--sm-bullet-size, 10px); padding: 0 7px; line-height: 1.5; word-break: break-word; }
 .sm-toggle {
   position: absolute;
   top: 4px;
@@ -248,6 +267,93 @@ svg.connectors {
   pointer-events: none;
 }
 
+#sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+  background: #fafafa;
+  flex-shrink: 0;
+}
+.tab-btn {
+  flex: 1;
+  padding: 9px 0;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab-btn.active { color: #1a1a1a; border-bottom-color: #1a1a1a; background: #fff; }
+.tab-btn:hover:not(.active) { color: #444; background: #f5f5f3; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: flex; flex-direction: column; gap: 10px; }
+
+.design-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.design-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.design-row label { flex: 1; color: #444; }
+.design-row .val { font-size: 11px; color: #888; width: 34px; text-align: right; }
+.design-row input[type=range] { flex: 2; accent-color: #1a1a1a; }
+
+.color-grid {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 5px 10px;
+  align-items: center;
+  font-size: 12px;
+}
+.color-grid .col-hdr {
+  font-size: 10px;
+  color: #aaa;
+  text-align: center;
+  font-weight: 500;
+}
+.color-grid .col-name { color: #444; }
+.color-grid input[type=color] {
+  width: 32px;
+  height: 24px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 1px;
+  background: #fff;
+}
+
+#align-bar {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  padding: 5px 16px;
+  display: none;
+  align-items: center;
+  gap: 3px;
+}
+#align-bar.visible { display: flex; }
+.align-sep { width: 1px; height: 20px; background: #ddd; margin: 0 5px; }
+.align-label { font-size: 11px; color: #999; margin-right: 2px; }
+.align-btn {
+  width: 28px; height: 28px;
+  border: 1px solid #ddd; border-radius: 5px;
+  background: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #444; padding: 0;
+}
+.align-btn:hover:not(:disabled) { background: #f5f5f3; border-color: #bbb; color: #111; }
+.align-btn:disabled { opacity: 0.3; cursor: default; }
+
 footer {
   padding: 8px 20px;
   font-size: 11px;
@@ -266,47 +372,116 @@ footer {
   <div class="toolbar-sep"></div>
   <button class="btn btn-success" onclick="buildExport()">Prepare Export</button>
   <div class="toolbar-sep"></div>
+  <button class="btn" onclick="tidyUp()">Tidy Up</button>
+  <div class="toolbar-sep"></div>
+  <button class="btn" id="undo-btn" onclick="undoMove()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+  <div class="toolbar-sep"></div>
   <span style="font-size:12px;color:#888">Drag boxes to reposition &nbsp;·&nbsp; Click ↕↔ to toggle orientation</span>
 </header>
 
+<div id="align-bar">
+  <span class="align-label">Align</span>
+  <button class="align-btn" title="Align left edges" onclick="alignSelected('left')"><svg width="18" height="18" viewBox="0 0 18 18"><line x1="3" y1="1" x2="3" y2="17" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="2" width="11" height="3" rx=".5" fill="currentColor"/><rect x="3" y="7.5" width="7" height="3" rx=".5" fill="currentColor"/><rect x="3" y="13" width="9" height="3" rx=".5" fill="currentColor"/></svg></button>
+  <button class="align-btn" title="Center horizontally" onclick="alignSelected('centerH')"><svg width="18" height="18" viewBox="0 0 18 18"><line x1="9" y1="1" x2="9" y2="17" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="2" width="12" height="3" rx=".5" fill="currentColor"/><rect x="5.5" y="7.5" width="7" height="3" rx=".5" fill="currentColor"/><rect x="4" y="13" width="10" height="3" rx=".5" fill="currentColor"/></svg></button>
+  <button class="align-btn" title="Align right edges" onclick="alignSelected('right')"><svg width="18" height="18" viewBox="0 0 18 18"><line x1="15" y1="1" x2="15" y2="17" stroke="currentColor" stroke-width="1.5"/><rect x="4" y="2" width="11" height="3" rx=".5" fill="currentColor"/><rect x="8" y="7.5" width="7" height="3" rx=".5" fill="currentColor"/><rect x="6" y="13" width="9" height="3" rx=".5" fill="currentColor"/></svg></button>
+  <div class="align-sep"></div>
+  <button class="align-btn" title="Align top edges" onclick="alignSelected('top')"><svg width="18" height="18" viewBox="0 0 18 18"><line x1="1" y1="3" x2="17" y2="3" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="3" width="3" height="12" rx=".5" fill="currentColor"/><rect x="7.5" y="3" width="3" height="7" rx=".5" fill="currentColor"/><rect x="13" y="3" width="3" height="10" rx=".5" fill="currentColor"/></svg></button>
+  <button class="align-btn" title="Center vertically" onclick="alignSelected('centerV')"><svg width="18" height="18" viewBox="0 0 18 18"><line x1="1" y1="9" x2="17" y2="9" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="3" width="3" height="12" rx=".5" fill="currentColor"/><rect x="7.5" y="5.5" width="3" height="7" rx=".5" fill="currentColor"/><rect x="13" y="4" width="3" height="10" rx=".5" fill="currentColor"/></svg></button>
+  <button class="align-btn" title="Align bottom edges" onclick="alignSelected('bottom')"><svg width="18" height="18" viewBox="0 0 18 18"><line x1="1" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="3" width="3" height="12" rx=".5" fill="currentColor"/><rect x="7.5" y="8" width="3" height="7" rx=".5" fill="currentColor"/><rect x="13" y="5" width="3" height="10" rx=".5" fill="currentColor"/></svg></button>
+  <div class="align-sep"></div>
+  <span class="align-label">Distribute</span>
+  <button class="align-btn" id="dist-h-btn" title="Distribute horizontally (need 3+)" onclick="distributeSelected('h')"><svg width="18" height="18" viewBox="0 0 18 18"><line x1="2" y1="2" x2="2" y2="16" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="16" y1="2" x2="16" y2="16" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2,2"/><rect x="1" y="6" width="3" height="6" rx=".5" fill="currentColor"/><rect x="7.5" y="6" width="3" height="6" rx=".5" fill="currentColor"/><rect x="14" y="6" width="3" height="6" rx=".5" fill="currentColor"/></svg></button>
+  <button class="align-btn" id="dist-v-btn" title="Distribute vertically (need 3+)" onclick="distributeSelected('v')"><svg width="18" height="18" viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="2" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2,2"/><line x1="2" y1="16" x2="16" y2="16" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2,2"/><rect x="6" y="1" width="6" height="3" rx=".5" fill="currentColor"/><rect x="6" y="7.5" width="6" height="3" rx=".5" fill="currentColor"/><rect x="6" y="14" width="6" height="3" rx=".5" fill="currentColor"/></svg></button>
+</div>
+
 <main>
   <div id="sidebar">
+    <div id="sidebar-tabs">
+      <button class="tab-btn active" onclick="switchTab('data')">Data</button>
+      <button class="tab-btn" onclick="switchTab('design')">Design</button>
+    </div>
     <div id="sidebar-inner">
 
-      <div>
-        <h2>CSV Data</h2>
-      </div>
+      <div id="tab-data" class="tab-panel active">
 
-      <div class="hint">
-        Columns: <code>Page</code>, <code>Parent</code>, <code>Section</code>, <code>Bullets</code><br>
-        Section = <code>main</code>, <code>header</code>, or <code>footer</code><br>
-        Bullets separated by <code>;</code> &nbsp;·&nbsp; Root has Parent = <code>—</code>
-      </div>
-
-      <textarea id="csv" placeholder="Page,Parent,Section,Bullets&#10;Homepage,—,main,Hero;About;Contact&#10;About,Homepage,main,Team;Mission"></textarea>
-
-      <div id="err"></div>
-
-      <div>
-        <h2 style="margin-bottom:6px">Sample data</h2>
-        <div class="sample-btns">
-          <button class="btn" onclick="loadTVCC()">Tri-Valley Career Center</button>
-          <button class="btn" onclick="loadDeep()">Deep site (3–4 levels)</button>
+        <div class="hint">
+          Columns: <code>Page</code>, <code>Parent</code>, <code>Section</code>, <code>Bullets</code><br>
+          Section = <code>main</code>, <code>header</code>, or <code>footer</code><br>
+          Bullets separated by <code>;</code> &nbsp;·&nbsp; Root has Parent = <code>—</code>
         </div>
-      </div>
 
-      <div id="export-area">
-        <p>Click a link to open in a new tab, then save with <strong>Cmd+S</strong> (Mac) or <strong>Ctrl+S</strong> (Windows). Or right-click → Save link as.</p>
-        <div class="export-links">
-          <a id="svg-link" target="_blank">Open SVG ↗</a>
-          <a id="png-link" target="_blank">Open PNG 2× ↗</a>
+        <textarea id="csv" placeholder="Page,Parent,Section,Bullets&#10;Homepage,—,main,Hero;About;Contact&#10;About,Homepage,main,Team;Mission"></textarea>
+
+        <div id="err"></div>
+
+        <div>
+          <h2 style="margin-bottom:6px">Sample data</h2>
+          <div class="sample-btns">
+            <button class="btn" onclick="loadTVCC()">Tri-Valley Career Center</button>
+            <button class="btn" onclick="loadDeep()">Deep site (3–4 levels)</button>
+          </div>
         </div>
-      </div>
+
+        <div id="export-area">
+          <p>Click a link to open in a new tab, then save with <strong>Cmd+S</strong> (Mac) or <strong>Ctrl+S</strong> (Windows). Or right-click → Save link as.</p>
+          <div class="export-links">
+            <a id="svg-link" target="_blank">Open SVG ↗</a>
+            <a id="png-link" target="_blank">Open PNG 2× ↗</a>
+          </div>
+        </div>
+
+      </div><!-- #tab-data -->
+
+      <div id="tab-design" class="tab-panel">
+
+        <div>
+          <div class="design-section-label">Font Size</div>
+          <div class="design-row">
+            <label>Title</label>
+            <input type="range" min="6" max="16" step="0.5" value="10" oninput="onFontSize('title',this.value)">
+            <span class="val" id="lbl-title">10px</span>
+          </div>
+          <div class="design-row">
+            <label>Bullet</label>
+            <input type="range" min="5" max="14" step="0.5" value="10" oninput="onFontSize('bullet',this.value)">
+            <span class="val" id="lbl-bullet">10px</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="design-section-label">Colors</div>
+          <div class="color-grid">
+            <span></span><span class="col-hdr">Fill</span><span class="col-hdr">Accent</span>
+            <span class="col-name">Root</span>
+            <input type="color" value="#EEEDFE" oninput="onColorChange('fill',0,this.value)">
+            <input type="color" value="#534AB7" oninput="onColorChange('accent',0,this.value)">
+            <span class="col-name">Level 1</span>
+            <input type="color" value="#E1F5EE" oninput="onColorChange('fill',1,this.value)">
+            <input type="color" value="#0F6E56" oninput="onColorChange('accent',1,this.value)">
+            <span class="col-name">Level 2</span>
+            <input type="color" value="#F1EFE8" oninput="onColorChange('fill',2,this.value)">
+            <input type="color" value="#888780" oninput="onColorChange('accent',2,this.value)">
+            <span class="col-name">Level 3</span>
+            <input type="color" value="#FAECE7" oninput="onColorChange('fill',3,this.value)">
+            <input type="color" value="#993C1D" oninput="onColorChange('accent',3,this.value)">
+            <span class="col-name">Level 4</span>
+            <input type="color" value="#EAF3DE" oninput="onColorChange('fill',4,this.value)">
+            <input type="color" value="#3B6D11" oninput="onColorChange('accent',4,this.value)">
+            <span class="col-name">Zone</span>
+            <input type="color" value="#FFFDF9" oninput="onColorChange('fill','zone',this.value)">
+            <input type="color" value="#888780" oninput="onColorChange('accent','zone',this.value)">
+          </div>
+        </div>
+
+      </div><!-- #tab-design -->
 
     </div>
   </div>
 
   <div id="canvas-area">
+    <div id="map-title-wrap">
+      <input id="map-title" type="text" placeholder="Sitemap title…" spellcheck="false">
+    </div>
     <div id="map"></div>
   </div>
 </main>
@@ -423,24 +598,26 @@ function buildTree(rows){
 }
 
 const ruler=document.createElement('div');
-ruler.style.cssText='position:fixed;visibility:hidden;pointer-events:none;width:150px;font-size:7.5px;line-height:1.5;word-break:break-word;padding:0 7px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif';
+ruler.style.cssText='position:fixed;visibility:hidden;pointer-events:none;width:150px;line-height:1.5;word-break:break-word;padding:0 7px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif';
 document.body.appendChild(ruler);
 
 function measureBH(bullets){
+  const cs=getComputedStyle(document.documentElement);
+  const titlePx=parseFloat(cs.getPropertyValue('--sm-title-size'))||10;
+  const bulletPx=parseFloat(cs.getPropertyValue('--sm-bullet-size'))||10;
+  ruler.style.fontSize=bulletPx+'px';
   ruler.innerHTML='';
-  bullets.forEach(b=>{
-    const d=document.createElement('div');d.textContent='• '+b;ruler.appendChild(d);
-  });
-  return 18+5+4+(bullets.length?ruler.offsetHeight:0)+8;
+  bullets.forEach(b=>{const d=document.createElement('div');d.textContent='• '+b;ruler.appendChild(d);});
+  const titleH=5+Math.ceil(titlePx*1.3)+3; // padding-top + line + padding-bottom
+  const sepH=5; // sep height + margin
+  return titleH+sepH+(bullets.length?ruler.offsetHeight:0)+6; // +6 box bottom padding
 }
 
-function measureTree(node,depth){
-  node.depth=depth;
-  node.bh=measureBH(node.bullets);
-  node.children.forEach(c=>measureTree(c,depth+1));
+function measureTreeDims(node){
+  node.children.forEach(c=>measureTreeDims(c));
   if(!node.children.length){node.tw=BOX_W;node.th=node.bh;return;}
   if(node.vmode){
-    node.tw=BOX_W+V_RIGHT+Math.max(...node.children.map(c=>c.tw));
+    node.tw=BOX_W+V_RIGHT*2+Math.max(...node.children.map(c=>c.tw));
     node.th=node.bh+V_DOWN+node.children.reduce((s,c)=>s+c.th,0)+(node.children.length-1)*V_GAP;
   } else {
     node.tw=Math.max(BOX_W,node.children.reduce((s,c)=>s+c.tw,0)+(node.children.length-1)*H_GAP);
@@ -448,12 +625,19 @@ function measureTree(node,depth){
   }
 }
 
+function measureTree(node,depth){
+  node.depth=depth;
+  node.bh=measureBH(node.bullets);
+  node.children.forEach(c=>measureTree(c,depth+1));
+  measureTreeDims(node);
+}
+
 function placeTree(node,x,y){
   node.baseX=x;node.baseY=y;
   node.x=x+(node.dx||0);node.y=y+(node.dy||0);
   if(!node.children.length)return;
   if(node.vmode){
-    const cx=node.baseX+BOX_W/2+V_RIGHT;
+    const cx=node.baseX+V_RIGHT*2;
     let cy=node.baseY+node.bh+V_DOWN;
     node.children.forEach(c=>{placeTree(c,cx,cy);cy+=c.th+V_GAP;});
   } else {
@@ -482,7 +666,7 @@ function updateConnectors(){
 function drawConnectors(node,svg){
   if(!node.children.length)return;
   if(node.vmode){
-    const px=node.x+BOX_W/2,pby=node.y+node.bh;
+    const px=node.x+V_RIGHT,pby=node.y+node.bh;
     node.children.forEach(c=>{
       const cmy=c.y+c.bh/2;
       const path=document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -506,21 +690,183 @@ function drawConnectors(node,svg){
   node.children.forEach(c=>drawConnectors(c,svg));
 }
 
-const selectedNodes=new Map(); // node -> {el}
+// ── Tab switching ──────────────────────────────────────────
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['data','design'][i]===name));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));
+}
+
+// ── Design helpers ─────────────────────────────────────────
+function hexLighten(hex,amt){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return '#'+[r,g,b].map(c=>Math.round(c+(255-c)*amt).toString(16).padStart(2,'0')).join('');
+}
+function hexDarken(hex,amt){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return '#'+[r,g,b].map(c=>Math.round(c*(1-amt)).toString(16).padStart(2,'0')).join('');
+}
+
+function onFontSize(type,val){
+  val=parseFloat(val);
+  if(type==='title'){
+    document.documentElement.style.setProperty('--sm-title-size',val+'px');
+    document.documentElement.style.setProperty('--sm-root-title-size',(val+1)+'px');
+  } else {
+    document.documentElement.style.setProperty('--sm-bullet-size',val+'px');
+  }
+  document.getElementById('lbl-'+type).textContent=val+'px';
+}
+
+function onColorChange(type,idx,val){
+  const target=idx==='zone'?ZONE_COLOR:COLORS[idx];
+  if(type==='fill'){
+    target.fill=val;
+  } else {
+    target.stroke=val;
+    target.title=hexDarken(val,0.15);
+    target.bullet=val;
+    target.sep=hexLighten(val,0.65);
+    target.toggle=val;
+  }
+  applyColors();
+}
+
+function applyColors(){
+  document.querySelectorAll('#map .sm-box').forEach(box=>{
+    const d=box.dataset.depth;
+    const c=d==='zone'?ZONE_COLOR:col(parseInt(d));
+    box.style.background=c.fill;
+    box.style.borderColor=c.stroke;
+    const title=box.querySelector('.sm-title');
+    if(title)title.style.color=c.title;
+    const sep=box.querySelector('.sm-sep');
+    if(sep)sep.style.background=c.sep;
+    box.querySelectorAll('.sm-bullet').forEach(b=>b.style.color=c.bullet);
+    const tog=box.querySelector('.sm-toggle');
+    if(tog)tog.style.color=c.stroke;
+  });
+}
+
+// ── Selection & undo ───────────────────────────────────────
+const selectedNodes=new Map(); // node -> el
+const undoStack=[]; // each entry: Map of node -> {dx,dy,x,y}
+let allNodes=[]; // flat list of all draggable nodes, populated during render
+
+function snapshotPositions(){
+  const snap=new Map();
+  allNodes.forEach(n=>snap.set(n,{dx:n.dx||0,dy:n.dy||0,x:n.x,y:n.y}));
+  return snap;
+}
+
+function pushUndo(snap){
+  undoStack.push(snap);
+  document.getElementById('undo-btn').disabled=false;
+}
+
+function tidyUp(){
+  if(!currentTree||!currentTree.root)return;
+  allNodes.forEach(n=>{n.dx=0;n.dy=0;});
+  render();
+}
+
+function undoMove(){
+  if(!undoStack.length)return;
+  const snap=undoStack.pop();
+  snap.forEach((s,n)=>{
+    n.dx=s.dx;n.dy=s.dy;n.x=s.x;n.y=s.y;
+    if(n._el){n._el.style.left=n.x+'px';n._el.style.top=n.y+'px';}
+  });
+  updateConnectors();
+  document.getElementById('undo-btn').disabled=!undoStack.length;
+}
+
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undoMove();}
+});
+
+document.getElementById('canvas-area').addEventListener('mousedown',e=>{
+  if(e.target===e.currentTarget||e.target.id==='map') clearSelection();
+});
+
+function updateAlignBar(){
+  const n=selectedNodes.size;
+  const bar=document.getElementById('align-bar');
+  bar.classList.toggle('visible',n>=2);
+  document.getElementById('dist-h-btn').disabled=n<3;
+  document.getElementById('dist-v-btn').disabled=n<3;
+}
+
+function alignSelected(type){
+  const nodes=[...selectedNodes.keys()];
+  if(nodes.length<2)return;
+  const snap=snapshotPositions();
+  nodes.forEach(n=>{
+    if(type==='left'){
+      const minX=Math.min(...nodes.map(n=>n.x));
+      n.x=minX;
+    } else if(type==='centerH'){
+      const cx=nodes.reduce((s,n)=>s+n.x+BOX_W/2,0)/nodes.length;
+      n.x=cx-BOX_W/2;
+    } else if(type==='right'){
+      const maxX=Math.max(...nodes.map(n=>n.x+BOX_W));
+      n.x=maxX-BOX_W;
+    } else if(type==='top'){
+      const minY=Math.min(...nodes.map(n=>n.y));
+      n.y=minY;
+    } else if(type==='centerV'){
+      const cy=nodes.reduce((s,n)=>s+n.y+(n._el?n._el.offsetHeight:0)/2,0)/nodes.length;
+      n.y=cy-(n._el?n._el.offsetHeight:0)/2;
+    } else if(type==='bottom'){
+      const maxY=Math.max(...nodes.map(n=>n.y+(n._el?n._el.offsetHeight:0)));
+      n.y=maxY-(n._el?n._el.offsetHeight:0);
+    }
+    n.dx=n.x-n.baseX; n.dy=n.y-n.baseY;
+    if(n._el){n._el.style.left=n.x+'px';n._el.style.top=n.y+'px';}
+  });
+  pushUndo(snap);
+  updateConnectors();
+}
+
+function distributeSelected(axis){
+  const nodes=[...selectedNodes.keys()];
+  if(nodes.length<3)return;
+  const snap=snapshotPositions();
+  if(axis==='h'){
+    nodes.sort((a,b)=>a.x-b.x);
+    const minX=nodes[0].x, maxX=nodes[nodes.length-1].x+BOX_W;
+    const gap=(maxX-minX-nodes.length*BOX_W)/(nodes.length-1);
+    let x=minX;
+    nodes.forEach(n=>{n.x=x;n.dx=n.x-n.baseX;if(n._el)n._el.style.left=n.x+'px';x+=BOX_W+gap;});
+  } else {
+    nodes.sort((a,b)=>a.y-b.y);
+    const heights=nodes.map(n=>n._el?n._el.offsetHeight:0);
+    const minY=nodes[0].y, maxY=nodes[nodes.length-1].y+heights[nodes.length-1];
+    const totalH=heights.reduce((s,h)=>s+h,0);
+    const gap=(maxY-minY-totalH)/(nodes.length-1);
+    let y=minY;
+    nodes.forEach((n,i)=>{n.y=y;n.dy=n.y-n.baseY;if(n._el)n._el.style.top=n.y+'px';y+=heights[i]+gap;});
+  }
+  pushUndo(snap);
+  updateConnectors();
+}
 
 function setSelected(node,el,val){
   if(val){selectedNodes.set(node,el);el.classList.add('selected');}
   else{selectedNodes.delete(node);el.classList.remove('selected');}
+  updateAlignBar();
 }
 
 function clearSelection(){
   selectedNodes.forEach((_,n)=>selectedNodes.get(n).classList.remove('selected'));
   selectedNodes.clear();
+  updateAlignBar();
 }
 
 function makeDraggable(el,node){
+  node._el=el;
+  allNodes.push(node);
   let startMX,startMY,moved;
-  let dragGroup; // Map of node -> {el, dx, dy} snapshotted at mousedown
+  let dragGroup,beforeSnap;
 
   el.addEventListener('mousedown',e=>{
     if(e.target.classList.contains('sm-toggle'))return;
@@ -528,13 +874,14 @@ function makeDraggable(el,node){
     moved=false;
     startMX=e.clientX;startMY=e.clientY;
 
-    // Determine drag group WITHOUT changing selection
     if(selectedNodes.has(node)){
       dragGroup=new Map();
       selectedNodes.forEach((nel,n)=>dragGroup.set(n,{el:nel,dx:n.dx||0,dy:n.dy||0}));
     } else {
       dragGroup=new Map([[node,{el,dx:node.dx||0,dy:node.dy||0}]]);
     }
+
+    beforeSnap=snapshotPositions();
 
     const onMove=ev=>{
       moved=true;
@@ -550,6 +897,7 @@ function makeDraggable(el,node){
     };
     const onUp=()=>{
       dragGroup.forEach(s=>s.el.classList.remove('dragging'));
+      if(moved) pushUndo(beforeSnap);
       document.removeEventListener('mousemove',onMove);
       document.removeEventListener('mouseup',onUp);
     };
@@ -574,6 +922,7 @@ function renderBox(node,container,onToggle){
   const c=col(node.depth);
   const el=document.createElement('div');
   el.className='sm-box';
+  el.dataset.depth=node.depth;
   el.style.cssText=`left:${node.x}px;top:${node.y}px;background:${c.fill};border-color:${c.stroke}`;
 
   const title=document.createElement('div');
@@ -626,6 +975,7 @@ function renderZone(items,container,label,yStart,totalW){
     const c=ZONE_COLOR;
     const el=document.createElement('div');
     el.className='sm-box';
+    el.dataset.depth='zone';
     el.style.cssText=`left:${x}px;top:${boxY}px;background:${c.fill};border-color:${c.stroke}`;
     const title=document.createElement('div');
     title.className='sm-title';title.style.color=c.title;title.textContent=item.page;el.appendChild(title);
@@ -645,6 +995,9 @@ function renderZone(items,container,label,yStart,totalW){
 
 function render(){
   clearSelection();
+  allNodes=[];
+  undoStack.length=0;
+  document.getElementById('undo-btn').disabled=true;
   const container=document.getElementById('map');
   container.innerHTML='';
   const{root,header,footer}=currentTree;
@@ -681,6 +1034,28 @@ function render(){
     root.x=root.baseX+(root.dx||0);
   }
 
+  // Pass 1: render boxes so we can read actual heights from the DOM
+  renderBox(root,container,()=>render());
+
+  // Pass 2: update bh from actual rendered heights, re-layout, reposition
+  function updateActualBH(node){
+    if(node._el)node.bh=node._el.offsetHeight;
+    node.children.forEach(c=>updateActualBH(c));
+  }
+  updateActualBH(root);
+  measureTreeDims(root);
+  placeTree(root,MARGIN,cy);
+  if(root.children.length&&!root.vmode){
+    const fc=root.children[0],lc=root.children[root.children.length-1];
+    root.baseX=Math.round((fc.x+lc.x+BOX_W)/2-BOX_W/2);
+    root.x=root.baseX+(root.dx||0);
+  }
+  function reposition(node){
+    if(node._el){node._el.style.left=node.x+'px';node._el.style.top=node.y+'px';}
+    node.children.forEach(c=>reposition(c));
+  }
+  reposition(root);
+
   const[mx,my]=treeExtent(root);
   cy=my+ZONE_GAP;
 
@@ -698,7 +1073,6 @@ function render(){
   container.insertBefore(svgEl,container.firstChild);
 
   drawConnectors(root,svgEl);
-  renderBox(root,container,()=>render());
 
   document.getElementById('export-area').style.display='none';
 }
