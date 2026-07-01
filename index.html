@@ -624,7 +624,7 @@ function parseCSV(raw){
     return{
       page:parts[pi]?.trim(),
       parent:parts[pai]?.trim()||'',
-      section:si>=0?(parts[si]?.trim()||'main'):'main',
+      section:si>=0?(parts[si]?.trim().toLowerCase()||'main'):'main',
       bullets:parts.slice(bi).join(',').trim().split(';').map(b=>b.trim()).filter(Boolean)
     };
   }).filter(r=>r.page);
