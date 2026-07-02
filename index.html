@@ -7,12 +7,16 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 14px;
   color: #1a1a1a;
   background: #f0efeb;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -56,14 +60,15 @@ header h1 {
 main {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
-  height: calc(100vh - 53px);
 }
 
 #sidebar {
   width: 300px;
   min-width: 220px;
   max-width: 400px;
+  min-height: 0;
   background: #fff;
   border-right: 1px solid #ddd;
   display: flex;
@@ -102,6 +107,41 @@ textarea {
   background: #fafafa;
   color: #1a1a1a;
   line-height: 1.5;
+  tab-size: 2;
+}
+
+.outline-wrap {
+  display: flex;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fafafa;
+  overflow: hidden;
+  height: 200px;
+}
+#outline-gutter {
+  flex: 0 0 auto;
+  min-width: 26px;
+  padding: 8px 6px 8px 8px;
+  font-size: 11px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  line-height: 1.5;
+  color: #aaa;
+  text-align: right;
+  white-space: pre;
+  user-select: none;
+  overflow: hidden;
+  background: #f0efeb;
+  border-right: 1px solid #e2e0da;
+}
+#outline {
+  flex: 1;
+  height: auto;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  white-space: pre;
+  overflow-x: auto;
+  resize: none;
 }
 textarea:focus { outline: none; border-color: #999; }
 
@@ -124,6 +164,43 @@ textarea:focus { outline: none; border-color: #999; }
   gap: 5px;
 }
 .sample-btns .btn { width: 100%; text-align: left; font-size: 12px; }
+
+#version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.version-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.version-row .version-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  color: #1a1a1a;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.version-row .version-name:hover { background: #f5f5f3; }
+.version-row .version-del {
+  border: none;
+  background: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.version-row .version-del:hover { color: #c0392b; }
 
 #err {
   color: #c0392b;
@@ -161,6 +238,7 @@ textarea:focus { outline: none; border-color: #999; }
 
 #canvas-area {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 20px;
   background: #fff;
@@ -192,27 +270,27 @@ textarea:focus { outline: none; border-color: #999; }
 
 .sm-box {
   position: absolute;
-  width: 125px;
+  width: var(--sm-box-w, 95px);
   user-select: text;
   -webkit-user-select: text;
   cursor: grab;
   transition: box-shadow 120ms ease, transform 120ms ease, outline-color 120ms ease;
 }
 .sm-box.has-bullets {
-  width: 220px;
+  width: max(var(--sm-box-w, 95px), 220px);
 }
 .sm-box.bullets-side {
-  width: 357px;
+  width: calc(var(--sm-box-w, 95px) + 12px + 220px);
   display: flex;
   align-items: flex-start;
   gap: 12px;
 }
 .sm-card {
   position: relative;
-  width: 125px;
-  min-height: 32px;
-  border-radius: 4px;
-  border-width: 1px;
+  width: var(--sm-box-w, 95px);
+  min-height: var(--sm-box-min-h, 32px);
+  border-radius: var(--sm-box-radius, 4px);
+  border-width: var(--sm-box-stroke-w, 2.5px);
   border-style: solid;
   background: #fff;
   box-shadow: 0 8px 22px rgba(26, 26, 26, 0.08);
@@ -242,7 +320,6 @@ textarea:focus { outline: none; border-color: #999; }
   text-align: center;
   width: 100%;
 }
-.sm-card.has-toggle .sm-title { padding: 8px 28px; }
 .sm-title.root { font-size: var(--sm-root-title-size, 11px); }
 .sm-bullet-list {
   box-sizing: border-box;
@@ -271,25 +348,6 @@ textarea:focus { outline: none; border-color: #999; }
   position: absolute;
   left: 0;
 }
-.sm-toggle {
-  position: absolute;
-  top: 7px;
-  right: 6px;
-  width: 17px;
-  height: 17px;
-  border-radius: 5px;
-  border: 1px solid rgba(255,255,255,0.72);
-  background: rgba(255,255,255,0.54);
-  cursor: pointer;
-  font-size: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.72;
-  padding: 0;
-  line-height: 1;
-}
-.sm-toggle:hover { opacity: 1; background: rgba(255,255,255,0.9); }
 
 .zone-label {
   position: absolute;
@@ -355,6 +413,17 @@ svg.connectors {
 .design-row label { flex: 1; color: #444; }
 .design-row .val { font-size: 11px; color: #888; width: 34px; text-align: right; }
 .design-row input[type=range] { flex: 2; accent-color: #1a1a1a; }
+.design-row input[type=color] {
+  width: 32px;
+  height: 24px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 1px;
+  background: #fff;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
 
 .color-grid {
   display: grid;
@@ -415,16 +484,15 @@ footer {
 
 <header>
   <h1>Sitemapper</h1>
-  <button class="btn btn-primary" onclick="generate()">Generate</button>
-  <div class="toolbar-sep"></div>
   <button class="btn btn-success" onclick="downloadSVG()">↓ SVG</button>
   <button class="btn btn-success" onclick="downloadPNG()">↓ PNG</button>
+  <button class="btn btn-success" onclick="publishHTML()" title="Download a standalone, read-only HTML page to share with clients">↓ Publish HTML</button>
   <div class="toolbar-sep"></div>
   <button class="btn" onclick="tidyUp()">Tidy Up</button>
   <div class="toolbar-sep"></div>
   <button class="btn" id="undo-btn" onclick="undoMove()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
   <div class="toolbar-sep"></div>
-  <span style="font-size:12px;color:#888">Drag boxes to reposition &nbsp;·&nbsp; Click ↕↔ to toggle orientation</span>
+  <span style="font-size:12px;color:#888">Drag boxes to reposition</span>
 </header>
 
 <div id="align-bar">
@@ -460,23 +528,33 @@ footer {
         </div>
 
         <div class="hint">
-          Columns: <code>Page</code>, <code>Parent</code>, <code>Section</code>, <code>Bullets</code><br>
-          Section = <code>main</code>, <code>header</code>, or <code>footer</code><br>
-          Bullets separated by <code>;</code> &nbsp;·&nbsp; Root has Parent = <code>—</code>
+          Start with <code>[Main]</code>, then list pages, one per line.<br>
+          Press <code>Tab</code> to nest a page under the one above it, <code>Shift+Tab</code> to un-nest.<br>
+          Bullets: indent one level deeper and start the line with <code>- </code><br>
+          Add a <code>[Header]</code> and/or <code>[Footer]</code> section (own line, no indent) for nav items — those are always a flat row, no nesting.<br>
+          The left column numbers each page (Level 1, 1.1, 1.2, …) so you can see where it sits in the hierarchy.<br>
+          <code>Cmd/Ctrl+Enter</code> regenerates the map from anywhere in this box.
         </div>
 
-        <textarea id="csv" placeholder="Page,Parent,Section,Bullets&#10;Homepage,—,main,Hero;About;Contact&#10;About,Homepage,main,Team;Mission"></textarea>
+        <div class="outline-wrap">
+          <div id="outline-gutter" aria-hidden="true"></div>
+          <textarea id="outline" placeholder="[Main]&#10;Homepage&#10;&#9;- Hero&#10;&#9;About&#10;&#9;&#9;- Team&#10;&#9;&#9;- Mission&#10;&#9;Contact&#10;&#10;[Header]&#10;Search&#10;&#10;[Footer]&#10;Privacy Policy"></textarea>
+        </div>
+
+        <button class="btn btn-primary" onclick="generate()" style="width:100%" title="Generate (Cmd/Ctrl+Enter)">Generate</button>
 
         <div id="err"></div>
 
         <div>
-          <h2 style="margin-bottom:6px">Sample data</h2>
+          <h2 style="margin-bottom:6px">Versions</h2>
           <div class="sample-btns">
-            <button class="btn" onclick="loadTVCC()">Tri-Valley Career Center</button>
-            <button class="btn" onclick="loadDeep()">Deep site (3–4 levels)</button>
+            <button class="btn" onclick="loadDefault()">Reset to Default</button>
+            <button class="btn" onclick="setAsDefault()">Set Current as Default</button>
+            <button class="btn" onclick="clearCustomDefault()">Clear Custom Default</button>
+            <button class="btn" onclick="saveVersion()">Save Version…</button>
           </div>
+          <div id="version-list"></div>
         </div>
-
 
       </div><!-- #tab-data -->
 
@@ -501,23 +579,87 @@ footer {
           <div class="color-grid">
             <span></span><span class="col-hdr">Fill</span><span class="col-hdr">Accent</span>
             <span class="col-name">Root</span>
-            <input type="color" value="#EEEDFE" oninput="onColorChange('fill',0,this.value)">
-            <input type="color" value="#534AB7" oninput="onColorChange('accent',0,this.value)">
+            <input type="color" id="fill-0" value="#f2f2f2" oninput="onColorChange('fill',0,this.value)">
+            <input type="color" id="accent-0" value="#333333" oninput="onColorChange('accent',0,this.value)">
             <span class="col-name">Level 1</span>
-            <input type="color" value="#E1F5EE" oninput="onColorChange('fill',1,this.value)">
-            <input type="color" value="#0F6E56" oninput="onColorChange('accent',1,this.value)">
+            <input type="color" id="fill-1" value="#f2f2f2" oninput="onColorChange('fill',1,this.value)">
+            <input type="color" id="accent-1" value="#333333" oninput="onColorChange('accent',1,this.value)">
             <span class="col-name">Level 2</span>
-            <input type="color" value="#F1EFE8" oninput="onColorChange('fill',2,this.value)">
-            <input type="color" value="#888780" oninput="onColorChange('accent',2,this.value)">
+            <input type="color" id="fill-2" value="#f2f2f2" oninput="onColorChange('fill',2,this.value)">
+            <input type="color" id="accent-2" value="#333333" oninput="onColorChange('accent',2,this.value)">
             <span class="col-name">Level 3</span>
-            <input type="color" value="#FAECE7" oninput="onColorChange('fill',3,this.value)">
-            <input type="color" value="#993C1D" oninput="onColorChange('accent',3,this.value)">
+            <input type="color" id="fill-3" value="#f2f2f2" oninput="onColorChange('fill',3,this.value)">
+            <input type="color" id="accent-3" value="#333333" oninput="onColorChange('accent',3,this.value)">
             <span class="col-name">Level 4</span>
-            <input type="color" value="#EAF3DE" oninput="onColorChange('fill',4,this.value)">
-            <input type="color" value="#3B6D11" oninput="onColorChange('accent',4,this.value)">
+            <input type="color" id="fill-4" value="#f2f2f2" oninput="onColorChange('fill',4,this.value)">
+            <input type="color" id="accent-4" value="#333333" oninput="onColorChange('accent',4,this.value)">
             <span class="col-name">Zone</span>
-            <input type="color" value="#FFFDF9" oninput="onColorChange('fill','zone',this.value)">
-            <input type="color" value="#888780" oninput="onColorChange('accent','zone',this.value)">
+            <input type="color" id="fill-zone" value="#f2f2f2" oninput="onColorChange('fill','zone',this.value)">
+            <input type="color" id="accent-zone" value="#333333" oninput="onColorChange('accent','zone',this.value)">
+          </div>
+        </div>
+
+        <div>
+          <div class="design-section-label">Box Style (all levels)</div>
+          <div class="design-row">
+            <label>Width</label>
+            <input type="range" min="80" max="300" step="1" value="95" oninput="onBoxWidth(this.value)">
+            <span class="val" id="lbl-box-w">95px</span>
+          </div>
+          <div class="design-row">
+            <label>Min Height</label>
+            <input type="range" min="20" max="120" step="1" value="32" oninput="onBoxMinHeight(this.value)">
+            <span class="val" id="lbl-box-min-h">32px</span>
+          </div>
+          <div class="design-row">
+            <label>Stroke Width</label>
+            <input type="range" min="0" max="6" step="0.5" value="2.5" oninput="onBoxStrokeWidth(this.value)">
+            <span class="val" id="lbl-box-stroke-w">2.5px</span>
+          </div>
+          <div class="design-row">
+            <label>Border Radius</label>
+            <input type="range" min="0" max="24" step="1" value="4" oninput="onBoxRadius(this.value)">
+            <span class="val" id="lbl-box-radius">4px</span>
+          </div>
+          <div class="design-row">
+            <label>Stroke Color</label>
+            <input type="color" value="#333333" oninput="onGlobalBoxColor('stroke',this.value)">
+          </div>
+          <div class="design-row">
+            <label>Background Color</label>
+            <input type="color" value="#f2f2f2" oninput="onGlobalBoxColor('fill',this.value)">
+          </div>
+        </div>
+
+        <div>
+          <div class="design-section-label">Column Gap</div>
+          <div class="design-row">
+            <label>Main</label>
+            <input type="range" min="0" max="100" step="1" value="22" oninput="onColumnGap('main',this.value)">
+            <span class="val" id="lbl-col-gap-main">22px</span>
+          </div>
+          <div class="design-row">
+            <label>Header</label>
+            <input type="range" min="0" max="100" step="1" value="22" oninput="onColumnGap('header',this.value)">
+            <span class="val" id="lbl-col-gap-header">22px</span>
+          </div>
+          <div class="design-row">
+            <label>Footer</label>
+            <input type="range" min="0" max="100" step="1" value="22" oninput="onColumnGap('footer',this.value)">
+            <span class="val" id="lbl-col-gap-footer">22px</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="design-section-label">Connector Lines</div>
+          <div class="design-row">
+            <label>Width</label>
+            <input type="range" min="0.5" max="4" step="0.1" value="0.8" oninput="onConnectorWidth(this.value)">
+            <span class="val" id="lbl-conn-w">0.8px</span>
+          </div>
+          <div class="design-row">
+            <label>Color</label>
+            <input type="color" value="#C0BDB6" oninput="onConnectorColor(this.value)">
           </div>
         </div>
 
@@ -536,115 +678,319 @@ footer {
 </main>
 
 <footer>
-  Sitemapper &nbsp;·&nbsp; Drag to reposition &nbsp;·&nbsp; ↕↔ toggles child orientation &nbsp;·&nbsp; Prepare Export for SVG and PNG
+  Sitemapper &nbsp;·&nbsp; Drag to reposition &nbsp;·&nbsp; Prepare Export for SVG and PNG
 </footer>
 
 <script>
-const TVCC=`Page,Parent,Section,Bullets
-Homepage,—,main,Hero with audience cards;Featured Workshops;Upcoming Events;Quick Links / CTAs
-Job Seekers,Homepage,main,Career Services & Counseling;Workshops & Events;Job Board;Training Opportunities;Resources & Community Support;Tip Sheets;Free Tax Preparation;EDD Information;Have a Question?
-Employers,Homepage,main,Employer Services;Post a Job;Hiring Events;Training Assistance;Labor Market Information;Small Business Resources;Have a Question?
-About,Homepage,main,About TVCC;Our Team;Community Partners;Success Stories;Contact Us
-Career Services & Counseling,Job Seekers,main,One-on-One Career Counseling;Start with an Orientation;What Career Counseling Covers;Job Clubs;Workspace & Resources;Visit Us
-Workshops & Events,Job Seekers,main,Workshop Topics;How to Register;Job Fairs & Hiring Events
-Job Board,Job Seekers,main,What You'll Find;How to Use the Job Board;Want to Post a Job?;Need Help with Your Search?
-Training Opportunities,Job Seekers,main,WIOA-Funded Training;Forklift & OSHA Safety Training;Typing Tests;Microsoft Office Training;Apprenticeships;Year to Career;Online Training Options
-Resources & Community Support,Job Seekers,main,Crisis Support;Food Resources;Housing Assistance;Financial Assistance;Health & Mental Health;Legal Resources;Disability Support;Childcare;Transportation
-Tip Sheets,Job Seekers,main,Preparation;Resources;Resumes Cover Letters & Applications;Networking & Job Fairs;Interviewing;Follow-Up & Negotiation
-Free Tax Preparation,Job Seekers,main,Who Qualifies;What to Bring;Service Options;Returns We Cannot Accommodate;Volunteer with Us;Make an Appointment
-EDD Information,Job Seekers,main,Unemployment Insurance;Phone Numbers;East Bay EDD Offices;Additional Employment Support;Disability Support;Forms Available at Our Office
-FAQs for Job Seekers,Job Seekers,main,Can you find me a job?;What is WIOA?;Do I need to enroll in WIOA?;What do I get out of enrolling?;Who can enroll?;What is the first step?;How much do services cost?;I just lost my job where do I start?;Can you help pay for training?
-Employer Services,Employers,main,Free Job Listings;Candidate Referrals;Consultation on Job Descriptions;Recruitment Events;Job Fair Participation;Employer Tip Sheets;Contact Our Employer Liaison
-Post a Job,Employers,main,How to Post a Job;Want More Support?;Also Post with Our College Partners
-Hiring Events,Employers,main,Annual Job Fairs;Upcoming Job Fairs;Recruitment Events at TVCC
-Training Assistance,Employers,main,On-the-Job Training (OJT);Customized Training;OSHA Safety Training;Apprenticeship Programs
-Labor Market Information,Employers,main,Local & Regional Resources;State Resources;National Resources;Downloadable Resources
-Small Business Resources,Employers,main,State Resources;Workforce & Training Resources;Tri-Valley Resources;City Resources
-FAQs for Employers,Employers,main,Are your services free?;How do I post a job?;Can you screen candidates?;What is OJT?;How do I join a job fair?;Can I host a recruitment event?;Are you a staffing agency?
-About TVCC,About,main,Our Approach;Funding & Affiliations;Chabot-Las Positas Community College District;Alameda County Workforce Development Board;EastBay Works
-Our Team,About,main,Staff;Affiliates
-Community Partners,About,main,Community Colleges & College Programs;State & County Agencies;Cities;Chambers of Commerce;Libraries;School Districts & Adult Schools;Local Nonprofits
-Success Stories,About,main,Job Seekers;Employers
-Contact Us,About,main,Visit Us;Call Us;Hours;Contact Form;Specific Contacts
-Job Board,,header,External link to Madgex job board
-Workshop Calendar,,header,External link to MyActiveCenter
-Newsletter Signup,,header,External link to Constant Contact
-Search,,header,Site search (MC built-in)
-Job Board,,footer,Link to Madgex job board
-Workshop Calendar,,footer,Link to MyActiveCenter
-Newsletter Signup,,footer,Link to Constant Contact
-Language Toggle,,footer,English / Español`;
+const TVCC=`[Main]
+Homepage
+	- Hero with audience cards
+	- Featured Workshops
+	- Upcoming Events
+	- Quick Links / CTAs
+	Job Seekers
+		- Career Services & Counseling
+		- Workshops & Events
+		- Job Board
+		- Training Opportunities
+		- Resources & Community Support
+		- Tip Sheets
+		- Free Tax Preparation
+		- EDD Information
+		- Have a Question?
+		Career Services & Counseling
+			- One-on-One Career Counseling
+			- Start with an Orientation
+			- What Career Counseling Covers
+			- Job Clubs
+			- Workspace & Resources
+			- Visit Us
+		Workshops & Events
+			- Workshop Topics
+			- How to Register
+			- Job Fairs & Hiring Events
+		Job Board
+			- What You'll Find
+			- How to Use the Job Board
+			- Want to Post a Job?
+			- Need Help with Your Search?
+		Training Opportunities
+			- WIOA-Funded Training
+			- Forklift & OSHA Safety Training
+			- Typing Tests
+			- Microsoft Office Training
+			- Apprenticeships
+			- Year to Career
+			- Online Training Options
+		Resources & Community Support
+			- Crisis Support
+			- Food Resources
+			- Housing Assistance
+			- Financial Assistance
+			- Health & Mental Health
+			- Legal Resources
+			- Disability Support
+			- Childcare
+			- Transportation
+		Tip Sheets
+			- Preparation
+			- Resources
+			- Resumes Cover Letters & Applications
+			- Networking & Job Fairs
+			- Interviewing
+			- Follow-Up & Negotiation
+		Free Tax Preparation
+			- Who Qualifies
+			- What to Bring
+			- Service Options
+			- Returns We Cannot Accommodate
+			- Volunteer with Us
+			- Make an Appointment
+		EDD Information
+			- Unemployment Insurance
+			- Phone Numbers
+			- East Bay EDD Offices
+			- Additional Employment Support
+			- Disability Support
+			- Forms Available at Our Office
+		FAQs for Job Seekers
+			- Can you find me a job?
+			- What is WIOA?
+			- Do I need to enroll in WIOA?
+			- What do I get out of enrolling?
+			- Who can enroll?
+			- What is the first step?
+			- How much do services cost?
+			- I just lost my job where do I start?
+			- Can you help pay for training?
+	Employers
+		- Employer Services
+		- Post a Job
+		- Hiring Events
+		- Training Assistance
+		- Labor Market Information
+		- Small Business Resources
+		- Have a Question?
+		Employer Services
+			- Free Job Listings
+			- Candidate Referrals
+			- Consultation on Job Descriptions
+			- Recruitment Events
+			- Job Fair Participation
+			- Employer Tip Sheets
+			- Contact Our Employer Liaison
+		Post a Job
+			- How to Post a Job
+			- Want More Support?
+			- Also Post with Our College Partners
+		Hiring Events
+			- Annual Job Fairs
+			- Upcoming Job Fairs
+			- Recruitment Events at TVCC
+		Training Assistance
+			- On-the-Job Training (OJT)
+			- Customized Training
+			- OSHA Safety Training
+			- Apprenticeship Programs
+		Labor Market Information
+			- Local & Regional Resources
+			- State Resources
+			- National Resources
+			- Downloadable Resources
+		Small Business Resources
+			- State Resources
+			- Workforce & Training Resources
+			- Tri-Valley Resources
+			- City Resources
+		FAQs for Employers
+			- Are your services free?
+			- How do I post a job?
+			- Can you screen candidates?
+			- What is OJT?
+			- How do I join a job fair?
+			- Can I host a recruitment event?
+			- Are you a staffing agency?
+	About
+		- About TVCC
+		- Our Team
+		- Community Partners
+		- Success Stories
+		- Contact Us
+		About TVCC
+			- Our Approach
+			- Funding & Affiliations
+			- Chabot-Las Positas Community College District
+			- Alameda County Workforce Development Board
+			- EastBay Works
+		Our Team
+			- Staff
+			- Affiliates
+		Community Partners
+			- Community Colleges & College Programs
+			- State & County Agencies
+			- Cities
+			- Chambers of Commerce
+			- Libraries
+			- School Districts & Adult Schools
+			- Local Nonprofits
+		Success Stories
+			- Job Seekers
+			- Employers
+		Contact Us
+			- Visit Us
+			- Call Us
+			- Hours
+			- Contact Form
+			- Specific Contacts
 
-const DEEP=`Page,Parent,Section,Bullets
-My Website,—,main,Overview;Featured content;Quick links
-Products,My Website,main,Category A;Category B;Category C
-Services,My Website,main,Overview;How It Works;Pricing;FAQs
-About,My Website,main,Our Story;Team;Careers;Contact
-Category A,Products,main,Item A1;Item A2;Item A3
-Category B,Products,main,Item B1;Item B2;Item B3
-Item A1,Category A,main,Description;Specifications;Pricing
-Item A2,Category A,main,Description;Specifications;Pricing
-Item A1 Detail,Item A1,main,Full specs;Download datasheet;Request quote
-Service Overview,Services,main,What we offer;Who we serve;Case studies
-How It Works,Services,main,Step 1;Step 2;Step 3
-Pricing,Services,main,Starter;Professional;Enterprise
-Our Story,About,main,Mission;History;Values
-Team,About,main,Leadership;Advisors
-Home,,header,Logo / home link
-Search,,header,Site search
-Account,,header,Login / account
-Facebook,,footer,Link to Facebook
-Privacy Policy,,footer,Privacy policy
-Terms of Use,,footer,Terms and conditions`;
+[Header]
+Job Board
+	- External link to Madgex job board
+Workshop Calendar
+	- External link to MyActiveCenter
+Newsletter Signup
+	- External link to Constant Contact
+Search
+	- Site search (MC built-in)
+
+[Footer]
+Job Board
+	- Link to Madgex job board
+Workshop Calendar
+	- Link to MyActiveCenter
+Newsletter Signup
+	- Link to Constant Contact
+Language Toggle
+	- English / Español`;
+
 
 const COLORS=[
-  {fill:'#EEEDFE',stroke:'#534AB7',title:'#3C3489',bullet:'#534AB7',sep:'#AFA9EC',toggle:'#534AB7'},
-  {fill:'#E1F5EE',stroke:'#0F6E56',title:'#085041',bullet:'#0F6E56',sep:'#5DCAA5',toggle:'#0F6E56'},
-  {fill:'#F1EFE8',stroke:'#888780',title:'#444441',bullet:'#5F5E5A',sep:'#B4B2A9',toggle:'#888780'},
-  {fill:'#FAECE7',stroke:'#993C1D',title:'#712B13',bullet:'#993C1D',sep:'#F0997B',toggle:'#993C1D'},
-  {fill:'#EAF3DE',stroke:'#3B6D11',title:'#27500A',bullet:'#3B6D11',sep:'#97C459',toggle:'#3B6D11'},
+  {fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'},
+  {fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'},
+  {fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'},
+  {fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'},
+  {fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'},
 ];
-const ZONE_COLOR={fill:'#FFFDF9',stroke:'#C8C6BC',title:'#555',bullet:'#666',sep:'#ddd'};
+const ZONE_COLOR={fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'};
 
-const BOX_W=125,H_GAP=22,H_ROW=36,V_GAP=8,V_DOWN=20,V_RIGHT=20;
-const BOX_RADIUS=4;
+let BOX_W=95;
+let H_GAP_MAIN=22,H_GAP_HEADER=22,H_GAP_FOOTER=22;
+const H_ROW=36,V_GAP=8,V_DOWN=20,V_RIGHT=20;
+let BOX_RADIUS=4;
+let BOX_STROKE_W=2.5;
+let BOX_MIN_H=32;
+let CONNECTOR_COLOR='#C0BDB6',CONNECTOR_W=0.8;
 const BULLET_LIST_W=220,BULLET_SIDE_GAP=12,BULLET_SIDE_W=220,V_BULLET_INDENT=34;
 const MARGIN=32,ZONE_GAP=36,ZONE_HDR=22;
 
 function col(d){return COLORS[Math.min(d,COLORS.length-1)];}
 
-function parseCSV(raw){
-  const lines=raw.trim().split('\n').filter(l=>l.trim());
-  if(lines.length<2) throw new Error('Need a header row and at least one data row.');
-  const hdr=lines[0].split(',').map(h=>h.trim().toLowerCase());
-  const pi=hdr.indexOf('page'),pai=hdr.indexOf('parent'),si=hdr.indexOf('section'),bi=hdr.indexOf('bullets');
-  if(pi<0||pai<0||bi<0) throw new Error('CSV must have columns: Page, Parent, Section, Bullets');
-  return lines.slice(1).map(l=>{
-    const parts=l.split(',');
-    return{
-      page:parts[pi]?.trim(),
-      parent:parts[pai]?.trim()||'',
-      section:si>=0?(parts[si]?.trim().toLowerCase()||'main'):'main',
-      bullets:parts.slice(bi).join(',').trim().split(';').map(b=>b.trim()).filter(Boolean)
-    };
-  }).filter(r=>r.page);
+const SECTION_MARKER=/^\[(main|header|footer)\]$/i;
+
+function splitOutlineSections(raw){
+  const rawLines=raw.replace(/\r\n?/g,'\n').split('\n');
+  const sections={main:[],header:[],footer:[]};
+  let current=null;
+  rawLines.forEach(line=>{
+    if(!line.trim())return;
+    const depth=(line.match(/^\t*/)[0]).length;
+    const text=line.slice(depth).trim();
+    const marker=depth===0&&text.match(SECTION_MARKER);
+    if(marker){
+      current=marker[1].toLowerCase();
+      return;
+    }
+    if(!current) throw new Error('Start the outline with a "[Main]" line, then list your pages indented below it.');
+    sections[current].push({depth,text});
+  });
+  return sections;
 }
 
-function buildTree(rows){
-  const map={};
-  rows.filter(r=>r.section==='main').forEach(r=>{
-    map[r.page]={...r,children:[],vmode:true,dx:0,dy:0};
+function computeOutlineNumbers(raw){
+  const rawLines=raw.replace(/\r\n?/g,'\n').split('\n');
+  let current=null;
+  const counters=[];
+  return rawLines.map(line=>{
+    if(!line.trim())return '';
+    const depth=(line.match(/^\t*/)[0]).length;
+    const text=line.slice(depth).trim();
+    const marker=depth===0&&text.match(SECTION_MARKER);
+    if(marker){
+      current=marker[1].toLowerCase();
+      counters.length=0;
+      return '';
+    }
+    if(!current||text.startsWith('- '))return '';
+    if(current==='main'){
+      if(depth===0)return '';
+      const numDepth=depth-1;
+      counters[numDepth]=(counters[numDepth]||0)+1;
+      counters.length=numDepth+1;
+      return counters.map(n=>n||1).join('.');
+    }
+    counters[0]=(counters[0]||0)+1;
+    counters.length=1;
+    return String(counters[0]);
   });
+}
+
+function updateOutlineGutter(){
+  const ta=document.getElementById('outline');
+  const gutter=document.getElementById('outline-gutter');
+  const numbers=computeOutlineNumbers(ta.value);
+  gutter.innerHTML=numbers.map(n=>'<div>'+n+'</div>').join('');
+  gutter.scrollTop=ta.scrollTop;
+}
+
+function buildMainTree(lines){
+  const stack=[];
   let root=null;
-  rows.filter(r=>r.section==='main').forEach(r=>{
-    const isRoot=!r.parent||r.parent==='—'||r.parent==='-'||!map[r.parent];
-    if(isRoot){if(!root){root=map[r.page];root.vmode=false;}}
-    else if(map[r.parent])map[r.parent].children.push(map[r.page]);
+  lines.forEach(({depth,text})=>{
+    if(text.startsWith('- ')){
+      const owner=stack[depth-1];
+      const bulletText=text.slice(2).trim();
+      if(owner&&bulletText)owner.bullets.push(bulletText);
+      return;
+    }
+    const node={page:text,bullets:[],children:[],vmode:true,dx:0,dy:0};
+    if(depth===0){
+      if(root) throw new Error(`Main can only have one top-level page — found a second one: "${text}".`);
+      root=node;
+    } else {
+      const parent=stack[depth-1];
+      if(!parent) throw new Error(`"${text}" is indented without a page above it at the previous level — check the tabs.`);
+      parent.children.push(node);
+    }
+    stack[depth]=node;
+    stack.length=depth+1;
   });
+  if(!root) throw new Error('Main needs at least one page.');
+  root.vmode=false;
+  return root;
+}
+
+function buildFlatZone(lines){
+  const items=[];
+  let last=null;
+  lines.forEach(({text})=>{
+    if(text.startsWith('- ')){
+      const bulletText=text.slice(2).trim();
+      if(last&&bulletText)last.bullets.push(bulletText);
+      return;
+    }
+    const item={page:text,bullets:[]};
+    items.push(item);
+    last=item;
+  });
+  return items;
+}
+
+function buildTreeFromOutline(raw){
+  const sections=splitOutlineSections(raw);
   return{
-    root,
-    header:rows.filter(r=>r.section==='header'),
-    footer:rows.filter(r=>r.section==='footer')
+    root:buildMainTree(sections.main),
+    header:buildFlatZone(sections.header),
+    footer:buildFlatZone(sections.footer)
   };
 }
 
@@ -655,7 +1001,7 @@ document.body.appendChild(ruler);
 function measureCardH(){
   const cs=getComputedStyle(document.documentElement);
   const titlePx=parseFloat(cs.getPropertyValue('--sm-title-size'))||10;
-  return Math.max(32,8+Math.ceil(titlePx*1.3)+8);
+  return Math.max(BOX_MIN_H,8+Math.ceil(titlePx*1.3)+8);
 }
 
 function measureBulletH(bullets,mode){
@@ -698,10 +1044,10 @@ function zoneItemW(item){
   return item.bullets?.length?Math.max(BOX_W,BULLET_LIST_W):BOX_W;
 }
 
-function zoneRowW(items){
+function zoneRowW(items,gap){
   if(!items.length)return 0;
   const itemsW=items.reduce((sum,item)=>sum+zoneItemW(item),0);
-  return itemsW+(items.length-1)*H_GAP+MARGIN*2;
+  return itemsW+(items.length-1)*gap+MARGIN*2;
 }
 
 function measureBH(bullets,mode='below'){
@@ -723,10 +1069,10 @@ function measureTreeDims(node){
   const ownW=nodeW(node);
   if(!node.children.length){node.tw=ownW;node.th=node.bh;return;}
   if(node.vmode){
-    node.tw=Math.max(ownW,BOX_W+V_RIGHT*2+Math.max(...node.children.map(c=>c.tw)));
+    node.tw=Math.max(ownW,V_RIGHT*2+Math.max(...node.children.map(c=>c.tw)));
     node.th=node.bh+V_DOWN+node.children.reduce((s,c)=>s+c.th,0)+(node.children.length-1)*V_GAP;
   } else {
-    node.tw=Math.max(ownW,node.children.reduce((s,c)=>s+c.tw,0)+(node.children.length-1)*H_GAP);
+    node.tw=Math.max(ownW,node.children.reduce((s,c)=>s+c.tw,0)+(node.children.length-1)*H_GAP_MAIN);
     node.th=node.bh+H_ROW+Math.max(...node.children.map(c=>c.th));
   }
 }
@@ -747,10 +1093,10 @@ function placeTree(node,x,y){
     let cy=node.baseY+node.bh+V_DOWN;
     node.children.forEach(c=>{placeTree(c,cx,cy);cy+=c.th+V_GAP;});
   } else {
-    const totalCW=node.children.reduce((s,c)=>s+c.tw,0)+(node.children.length-1)*H_GAP;
+    const totalCW=node.children.reduce((s,c)=>s+c.tw,0)+(node.children.length-1)*H_GAP_MAIN;
     let cx=x+(node.tw-totalCW)/2;
     const cy=y+node.bh+H_ROW;
-    node.children.forEach(c=>{placeTree(c,cx,cy);cx+=c.tw+H_GAP;});
+    node.children.forEach(c=>{placeTree(c,cx,cy);cx+=c.tw+H_GAP_MAIN;});
   }
 }
 
@@ -777,7 +1123,7 @@ function drawConnectors(node,svg){
       const cmy=c.y+cardH(c)/2;
       const path=document.createElementNS('http://www.w3.org/2000/svg','path');
       path.setAttribute('d',`M${px},${pby} L${px},${cmy} L${c.x},${cmy}`);
-      path.setAttribute('fill','none');path.setAttribute('stroke','#C0BDB6');path.setAttribute('stroke-width','0.8');
+      path.setAttribute('fill','none');path.setAttribute('stroke',CONNECTOR_COLOR);path.setAttribute('stroke-width',CONNECTOR_W);
       svg.appendChild(path);
     });
   } else {
@@ -785,7 +1131,7 @@ function drawConnectors(node,svg){
     const ln=(x1,y1,x2,y2)=>{
       const l=document.createElementNS('http://www.w3.org/2000/svg','line');
       l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
-      l.setAttribute('stroke','#C0BDB6');l.setAttribute('stroke-width','0.8');svg.appendChild(l);
+      l.setAttribute('stroke',CONNECTOR_COLOR);l.setAttribute('stroke-width',CONNECTOR_W);svg.appendChild(l);
     };
     ln(mx,startY,mx,my);
     if(node.children.length>1){
@@ -800,16 +1146,6 @@ function drawConnectors(node,svg){
 function switchTab(name){
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['data','design'][i]===name));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));
-}
-
-// ── Design helpers ─────────────────────────────────────────
-function hexLighten(hex,amt){
-  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  return '#'+[r,g,b].map(c=>Math.round(c+(255-c)*amt).toString(16).padStart(2,'0')).join('');
-}
-function hexDarken(hex,amt){
-  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  return '#'+[r,g,b].map(c=>Math.round(c*(1-amt)).toString(16).padStart(2,'0')).join('');
 }
 
 function onFontSize(type,val){
@@ -829,12 +1165,81 @@ function onColorChange(type,idx,val){
     target.fill=val;
   } else {
     target.stroke=val;
-    target.title=hexDarken(val,0.15);
+    target.title=val;
     target.bullet=val;
-    target.sep=hexLighten(val,0.65);
-    target.toggle=val;
   }
   applyColors();
+}
+
+function onBoxWidth(val){
+  val=parseFloat(val);
+  BOX_W=val;
+  document.documentElement.style.setProperty('--sm-box-w',val+'px');
+  document.getElementById('lbl-box-w').textContent=val+'px';
+  if(currentTree&&currentTree.root)render();
+}
+
+function onColumnGap(section,val){
+  val=parseFloat(val);
+  if(section==='main')H_GAP_MAIN=val;
+  else if(section==='header')H_GAP_HEADER=val;
+  else H_GAP_FOOTER=val;
+  document.getElementById('lbl-col-gap-'+section).textContent=val+'px';
+  if(currentTree&&currentTree.root)render();
+}
+
+function onBoxMinHeight(val){
+  val=parseFloat(val);
+  BOX_MIN_H=val;
+  document.documentElement.style.setProperty('--sm-box-min-h',val+'px');
+  document.getElementById('lbl-box-min-h').textContent=val+'px';
+  if(currentTree&&currentTree.root)render();
+}
+
+function onBoxStrokeWidth(val){
+  val=parseFloat(val);
+  BOX_STROKE_W=val;
+  document.documentElement.style.setProperty('--sm-box-stroke-w',val+'px');
+  document.getElementById('lbl-box-stroke-w').textContent=val+'px';
+}
+
+function onGlobalBoxColor(type,val){
+  COLORS.forEach((c,i)=>{
+    if(type==='fill'){
+      c.fill=val;
+      document.getElementById('fill-'+i).value=val;
+    } else {
+      c.stroke=val;c.title=val;c.bullet=val;
+      document.getElementById('accent-'+i).value=val;
+    }
+  });
+  if(type==='fill'){
+    ZONE_COLOR.fill=val;
+    document.getElementById('fill-zone').value=val;
+  } else {
+    ZONE_COLOR.stroke=val;ZONE_COLOR.title=val;ZONE_COLOR.bullet=val;
+    document.getElementById('accent-zone').value=val;
+  }
+  applyColors();
+}
+
+function onBoxRadius(val){
+  val=parseFloat(val);
+  BOX_RADIUS=val;
+  document.documentElement.style.setProperty('--sm-box-radius',val+'px');
+  document.getElementById('lbl-box-radius').textContent=val+'px';
+}
+
+function onConnectorColor(val){
+  CONNECTOR_COLOR=val;
+  updateConnectors();
+}
+
+function onConnectorWidth(val){
+  val=parseFloat(val);
+  CONNECTOR_W=val;
+  document.getElementById('lbl-conn-w').textContent=val+'px';
+  updateConnectors();
 }
 
 function applyColors(){
@@ -849,8 +1254,6 @@ function applyColors(){
     const title=box.querySelector('.sm-title');
     if(title)title.style.color=c.title;
     box.querySelectorAll('.sm-bullet').forEach(b=>b.style.color=c.bullet);
-    const tog=box.querySelector('.sm-toggle');
-    if(tog)tog.style.color=c.stroke;
   });
 }
 
@@ -888,11 +1291,58 @@ function undoMove(){
 }
 
 document.addEventListener('keydown',e=>{
-  if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undoMove();}
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){
+    const tag=document.activeElement&&document.activeElement.tagName;
+    if(tag==='TEXTAREA'||tag==='INPUT')return; // let the browser's native undo handle text fields
+    e.preventDefault();undoMove();
+  }
 });
 
 document.getElementById('canvas-area').addEventListener('mousedown',e=>{
   if(e.target===e.currentTarget||e.target.id==='map') clearSelection();
+});
+
+document.getElementById('outline').addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
+    e.preventDefault();
+    generate();
+    return;
+  }
+  if(e.key!=='Tab')return;
+  e.preventDefault();
+  const ta=e.target;
+  const val=ta.value;
+  const selStart=ta.selectionStart,selEnd=ta.selectionEnd;
+  const lineStart=val.lastIndexOf('\n',selStart-1)+1;
+  const lineEndSearchFrom=(selEnd>selStart&&val[selEnd-1]==='\n')?selEnd-1:selEnd;
+  let lineEnd=val.indexOf('\n',lineEndSearchFrom);
+  if(lineEnd===-1)lineEnd=val.length;
+  const block=val.slice(lineStart,lineEnd);
+  const lines=block.split('\n');
+  let firstLineDelta=0;
+  const newLines=lines.map((line,i)=>{
+    if(e.shiftKey){
+      if(line.startsWith('\t')){
+        if(i===0)firstLineDelta=-1;
+        return line.slice(1);
+      }
+      return line;
+    } else {
+      if(i===0)firstLineDelta=1;
+      return '\t'+line;
+    }
+  });
+  const newBlock=newLines.join('\n');
+  ta.value=val.slice(0,lineStart)+newBlock+val.slice(lineEnd);
+  const lenDiff=newBlock.length-block.length;
+  ta.selectionStart=Math.max(lineStart,selStart+firstLineDelta);
+  ta.selectionEnd=selEnd+lenDiff;
+  updateOutlineGutter();
+});
+
+document.getElementById('outline').addEventListener('input',updateOutlineGutter);
+document.getElementById('outline').addEventListener('scroll',()=>{
+  document.getElementById('outline-gutter').scrollTop=document.getElementById('outline').scrollTop;
 });
 
 function updateAlignBar(){
@@ -976,7 +1426,6 @@ function makeDraggable(el,node){
   let dragGroup,beforeSnap;
 
   el.addEventListener('mousedown',e=>{
-    if(e.target.classList.contains('sm-toggle'))return;
     e.preventDefault();
     moved=false;
     startMX=e.clientX;startMY=e.clientY;
@@ -1013,7 +1462,6 @@ function makeDraggable(el,node){
   });
 
   el.addEventListener('click',e=>{
-    if(e.target.classList.contains('sm-toggle'))return;
     if(moved)return;
     if(e.shiftKey){
       setSelected(node,el,!selectedNodes.has(node));
@@ -1025,7 +1473,7 @@ function makeDraggable(el,node){
   });
 }
 
-function renderBox(node,container,onToggle){
+function renderBox(node,container){
   const c=col(node.depth);
   const mode=bulletMode(node);
   const el=document.createElement('div');
@@ -1034,7 +1482,7 @@ function renderBox(node,container,onToggle){
   el.style.cssText=`left:${node.x}px;top:${node.y}px`;
 
   const card=document.createElement('div');
-  card.className='sm-card'+(node.children.length?' has-toggle':'');
+  card.className='sm-card';
   card.style.cssText=`background:${c.fill};border-color:${c.stroke}`;
   el.appendChild(card);
 
@@ -1043,20 +1491,6 @@ function renderBox(node,container,onToggle){
   title.style.color=c.title;
   title.textContent=node.page;
   card.appendChild(title);
-
-  if(node.children.length){
-    const tog=document.createElement('button');
-    tog.className='sm-toggle';
-    tog.style.color=c.toggle;
-    tog.title=(node.vmode?'Switch to horizontal layout':'Switch to vertical layout');
-    tog.textContent=node.vmode?'↔':'↕';
-    tog.addEventListener('click',e=>{
-      e.stopPropagation();
-      node.vmode=!node.vmode;
-      onToggle();
-    });
-    card.appendChild(tog);
-  }
 
   if(node.bullets.length){
     const list=document.createElement('div');
@@ -1070,10 +1504,10 @@ function renderBox(node,container,onToggle){
 
   makeDraggable(el,node);
   container.appendChild(el);
-  node.children.forEach(child=>renderBox(child,container,onToggle));
+  node.children.forEach(child=>renderBox(child,container));
 }
 
-function renderZone(items,container,label,yStart,totalW){
+function renderZone(items,container,label,yStart,totalW,gap){
   if(!items.length)return 0;
   const lbl=document.createElement('div');
   lbl.className='zone-label';
@@ -1110,7 +1544,7 @@ function renderZone(items,container,label,yStart,totalW){
     const fakeNode={x,y:boxY,baseX:x,baseY:boxY,dx:0,dy:0};
     makeDraggable(el,fakeNode);
     container.appendChild(el);
-    x+=zoneItemW(item)+H_GAP;
+    x+=zoneItemW(item)+gap;
   });
   return ZONE_HDR+6+maxBH;
 }
@@ -1128,13 +1562,13 @@ function render(){
 
   const totalW=Math.max(
     root.tw+MARGIN*2,
-    zoneRowW(header),
-    zoneRowW(footer)
+    zoneRowW(header,H_GAP_HEADER),
+    zoneRowW(footer,H_GAP_FOOTER)
   );
 
   let cy=MARGIN;
 
-  const hdrH=renderZone(header,container,'Header / Utility Nav',cy,totalW);
+  const hdrH=renderZone(header,container,'Header / Utility Nav',cy,totalW,H_GAP_HEADER);
   if(hdrH)cy+=hdrH+ZONE_GAP;
 
   // Main site label
@@ -1157,7 +1591,7 @@ function render(){
   }
 
   // Pass 1: render boxes so we can read actual heights from the DOM
-  renderBox(root,container,()=>render());
+  renderBox(root,container);
 
   // Pass 2: update bh from actual rendered heights, re-layout, reposition
   function updateActualBH(node){
@@ -1181,7 +1615,7 @@ function render(){
   const[mx,my]=treeExtent(root);
   cy=my+ZONE_GAP;
 
-  const ftrH=renderZone(footer,container,'Footer Nav',cy,totalW);
+  const ftrH=renderZone(footer,container,'Footer Nav',cy,totalW,H_GAP_FOOTER);
   const finalH=cy+(ftrH||0)+MARGIN;
   const finalW=Math.max(mx+MARGIN,totalW);
 
@@ -1199,14 +1633,12 @@ function render(){
 }
 
 function generate(){
-  const raw=document.getElementById('csv').value.trim();
+  const raw=document.getElementById('outline').value.trim();
   const errEl=document.getElementById('err');
   errEl.style.display='none';
-  if(!raw){errEl.textContent='Paste CSV data first.';errEl.style.display='block';return;}
+  if(!raw){errEl.textContent='Type or paste an outline first.';errEl.style.display='block';return;}
   try{
-    const rows=parseCSV(raw);
-    currentTree=buildTree(rows);
-    if(!currentTree.root) throw new Error('No root node found. Make sure one row has Parent = —');
+    currentTree=buildTreeFromOutline(raw);
     // Auto-populate name from root page if blank
     if(!document.getElementById('sitemap-name').value.trim()){
       const name=currentTree.root.page||'Sitemap';
@@ -1324,7 +1756,7 @@ function buildSVGString(){
     rect.setAttribute('x',bx);rect.setAttribute('y',by);
     rect.setAttribute('width',BOX_W);rect.setAttribute('height',cardHeight);
     rect.setAttribute('rx',BOX_RADIUS);rect.setAttribute('fill',card?card.style.background:box.style.background);
-    rect.setAttribute('stroke',card?card.style.borderColor:box.style.borderColor);rect.setAttribute('stroke-width','1');
+    rect.setAttribute('stroke',card?card.style.borderColor:box.style.borderColor);rect.setAttribute('stroke-width',BOX_STROKE_W);
     rect.setAttribute('filter','url(#boxShadow)');
     bg2.appendChild(rect);
 
@@ -1408,11 +1840,116 @@ function downloadPNG(){
   img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(buildSVGString());
 }
 
-function loadTVCC(){document.getElementById('csv').value=TVCC;generate();}
-function loadDeep(){document.getElementById('csv').value=DEEP;generate();}
+function publishHTML(){
+  if(!currentTree){alert('Generate a sitemap first.');return;}
+  const title=document.getElementById('map-title').value.trim()||'Sitemap';
+  const safeTitle=title.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const html='<!DOCTYPE html>\n'
+    +'<html lang="en">\n<head>\n<meta charset="UTF-8">\n'
+    +'<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+    +'<title>'+safeTitle+'</title>\n'
+    +'<style>\n'
+    +'  body{margin:0;padding:40px;background:#f0efeb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;display:flex;justify-content:center;}\n'
+    +'  .wrap{background:#fff;padding:24px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.08);overflow:auto;max-width:100%;}\n'
+    +'  svg{display:block;max-width:100%;height:auto;}\n'
+    +'</style>\n</head>\n<body>\n<div class="wrap">\n'
+    +buildSVGString()
+    +'\n</div>\n</body>\n</html>\n';
+  const a=document.createElement('a');
+  a.href='data:text/html;charset=utf-8,'+encodeURIComponent(html);
+  a.download=getExportFilename()+'-published.html';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
 
-// Auto-load TVCC on start
-loadTVCC();
+function getVersions(){
+  try{return JSON.parse(localStorage.getItem('sitemapper.versions')||'[]');}catch(e){return[];}
+}
+function setVersions(list){
+  localStorage.setItem('sitemapper.versions',JSON.stringify(list));
+}
+
+function getDefaultOutline(){
+  const stored=localStorage.getItem('sitemapper.default');
+  return (stored&&stored.trim())?stored:TVCC;
+}
+
+function loadDefault(){
+  document.getElementById('outline').value=getDefaultOutline();
+  updateOutlineGutter();
+  generate();
+}
+
+function setAsDefault(){
+  const raw=document.getElementById('outline').value.trim();
+  if(!raw)return;
+  try{
+    buildTreeFromOutline(raw);
+  }catch(e){
+    alert('This outline has an error and can\'t be saved as the default yet:\n\n'+e.message);
+    return;
+  }
+  if(!confirm('Overwrite the default with the current outline? "Reset to Default" will load this from now on.'))return;
+  localStorage.setItem('sitemapper.default',raw);
+}
+
+function clearCustomDefault(){
+  if(!localStorage.getItem('sitemapper.default')){alert('No custom default is set — "Reset to Default" already loads the built-in Tri-Valley sitemap.');return;}
+  if(!confirm('Clear your custom default and go back to the built-in Tri-Valley sitemap?'))return;
+  localStorage.removeItem('sitemapper.default');
+}
+
+function saveVersion(){
+  const raw=document.getElementById('outline').value.trim();
+  if(!raw)return;
+  const name=prompt('Name this version:',document.getElementById('sitemap-name').value||'Untitled');
+  if(!name)return;
+  const versions=getVersions();
+  versions.push({id:Date.now()+'-'+Math.random().toString(36).slice(2),name,content:raw,savedAt:new Date().toISOString()});
+  setVersions(versions);
+  renderVersionList();
+}
+
+function loadVersion(id){
+  const v=getVersions().find(v=>v.id===id);
+  if(!v)return;
+  document.getElementById('outline').value=v.content;
+  updateOutlineGutter();
+  generate();
+}
+
+function deleteVersion(id){
+  const versions=getVersions();
+  const v=versions.find(v=>v.id===id);
+  if(!v)return;
+  if(!confirm(`Delete version "${v.name}"?`))return;
+  setVersions(versions.filter(x=>x.id!==id));
+  renderVersionList();
+}
+
+function renderVersionList(){
+  const container=document.getElementById('version-list');
+  container.innerHTML='';
+  getVersions().slice().reverse().forEach(v=>{
+    const row=document.createElement('div');
+    row.className='version-row';
+    const btn=document.createElement('button');
+    btn.className='version-name';
+    btn.textContent=v.name;
+    btn.title=new Date(v.savedAt).toLocaleString();
+    btn.onclick=()=>loadVersion(v.id);
+    const del=document.createElement('button');
+    del.className='version-del';
+    del.textContent='✕';
+    del.title='Delete version';
+    del.onclick=e=>{e.stopPropagation();deleteVersion(v.id);};
+    row.appendChild(btn);row.appendChild(del);
+    container.appendChild(row);
+  });
+}
+
+// Auto-load default on start
+loadDefault();
+renderVersionList();
 </script>
 </body>
 </html>
