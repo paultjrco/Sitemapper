@@ -701,8 +701,29 @@ function buildMainFromSheet(items){
   return root;
 }
 
-function buildFlatZoneFromSheet(items){
-  return items.map(p=>({page:p.name,bullets:p.notes||[]}));
+// Header/footer items can nest via Parent just like Main, but allow multiple
+// top-level entries (no single-root constraint) since a nav zone is a row,
+// not a single tree.
+function buildZoneForest(items,sectionLabel){
+  const byKey=new Map();
+  items.forEach(p=>{
+    const key=cellText(p.name);
+    if(byKey.has(key)) throw new Error(`"${key}" appears more than once in the ${sectionLabel} section — page names must be unique since Parent refers to them by name. Check for a duplicate row.`);
+    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0});
+  });
+  const roots=[];
+  items.forEach(p=>{
+    const key=cellText(p.name);
+    const node=byKey.get(key);
+    if(!p.parent){
+      roots.push(node);
+    } else {
+      const parent=byKey.get(p.parent);
+      if(!parent) throw new Error(`"${key}" lists parent "${p.parent}", but no page with that name was found in the ${sectionLabel} section.`);
+      parent.children.push(node);
+    }
+  });
+  return roots;
 }
 
 function buildTreeFromPages(pages){
@@ -713,8 +734,8 @@ function buildTreeFromPages(pages){
   });
   return{
     root:buildMainFromSheet(bySection.main),
-    header:buildFlatZoneFromSheet(bySection.header),
-    footer:buildFlatZoneFromSheet(bySection.footer)
+    header:buildZoneForest(bySection.header,'header'),
+    footer:buildZoneForest(bySection.footer,'footer')
   };
 }
 
@@ -766,13 +787,11 @@ function nodeW(node){
   return bulletMode(node)==='side'?BOX_W+BULLET_SIDE_GAP+BULLET_SIDE_W:Math.max(BOX_W,BULLET_LIST_W);
 }
 
-function zoneItemW(item){
-  return item.bullets?.length?Math.max(BOX_W,BULLET_LIST_W):BOX_W;
-}
-
+// Items must already be measured (measureTree) so .tw reflects their full
+// subtree width, not just their own box.
 function zoneRowW(items,gap){
   if(!items.length)return 0;
-  const itemsW=items.reduce((sum,item)=>sum+zoneItemW(item),0);
+  const itemsW=items.reduce((sum,item)=>sum+item.tw,0);
   return itemsW+(items.length-1)*gap+MARGIN*2;
 }
 
@@ -1197,6 +1216,46 @@ function renderBox(node,container){
   node.children.forEach(child=>renderBox(child,container));
 }
 
+// Same as renderBox, but always uses ZONE_COLOR (header/footer items keep a
+// uniform look regardless of nesting depth, unlike Main's depth-based colors).
+function renderZoneBox(node,container){
+  const mode=bulletMode(node);
+  const el=document.createElement('div');
+  const hasBullets=(node.bullets||[]).length>0;
+  const bullets=visibleBullets(node);
+  el.className='sm-box'+(hasBullets?' has-bullets':'')+(mode==='side'?' bullets-side':mode==='indent'?' has-children-v':'');
+  el.dataset.depth='zone';
+  el.style.cssText=`left:${node.x}px;top:${node.y}px`;
+
+  const card=document.createElement('div');
+  card.className='sm-card';
+  card.style.cssText=`background:${ZONE_COLOR.fill};border-color:${ZONE_COLOR.stroke}`;
+  el.appendChild(card);
+
+  const title=document.createElement('div');
+  title.className='sm-title';
+  title.style.color=ZONE_COLOR.title;
+  title.textContent=cellText(node.page);
+  linkify(title,cellUrl(node.page));
+  card.appendChild(title);
+
+  if(bullets.length){
+    const list=document.createElement('div');
+    list.className='sm-bullet-list';
+    bullets.forEach(b=>{
+      const d=document.createElement('div');
+      d.className='sm-bullet';d.style.color=ZONE_COLOR.bullet;d.textContent=cellText(b);
+      linkify(d,cellUrl(b));
+      list.appendChild(d);
+    });
+    el.appendChild(list);
+  }
+
+  makeDraggable(el,node);
+  container.appendChild(el);
+  node.children.forEach(child=>renderZoneBox(child,container));
+}
+
 function renderZone(items,container,label,yStart,totalW,gap){
   if(!items.length)return 0;
   const lbl=document.createElement('div');
@@ -1208,41 +1267,36 @@ function renderZone(items,container,label,yStart,totalW,gap){
   rule.className='zone-rule';
   rule.style.cssText=`top:${yStart+15}px;left:${MARGIN}px;width:${totalW-MARGIN*2}px`;
   container.appendChild(rule);
-  let x=MARGIN;const boxY=yStart+ZONE_HDR+4;let maxBH=0;
+  const boxY=yStart+ZONE_HDR+4;
+
+  // Pass 1: place + render so real DOM heights can be read back
+  let x=MARGIN;
   items.forEach(item=>{
-    const hasBullets=(item.bullets||[]).length>0;
-    const bullets=visibleBullets(item);
-    const bh=measureBH(bullets);maxBH=Math.max(maxBH,bh);
-    const c=ZONE_COLOR;
-    const el=document.createElement('div');
-    el.className='sm-box'+(hasBullets?' has-bullets':'');
-    el.dataset.depth='zone';
-    el.style.cssText=`left:${x}px;top:${boxY}px`;
-    const card=document.createElement('div');
-    card.className='sm-card';
-    card.style.cssText=`background:${c.fill};border-color:${c.stroke}`;
-    el.appendChild(card);
-    const title=document.createElement('div');
-    title.className='sm-title';title.style.color=c.title;title.textContent=cellText(item.page);
-    linkify(title,cellUrl(item.page));
-    card.appendChild(title);
-    if(bullets.length){
-      const list=document.createElement('div');
-      list.className='sm-bullet-list';
-      bullets.forEach(b=>{
-        const d=document.createElement('div');
-        d.className='sm-bullet';d.style.color=c.bullet;d.textContent=cellText(b);
-        linkify(d,cellUrl(b));
-        list.appendChild(d);
-      });
-      el.appendChild(list);
-    }
-    const fakeNode={x,y:boxY,baseX:x,baseY:boxY,dx:0,dy:0};
-    makeDraggable(el,fakeNode);
-    container.appendChild(el);
-    x+=zoneItemW(item)+gap;
+    placeTree(item,x,boxY);
+    renderZoneBox(item,container);
+    x+=item.tw+gap;
   });
-  return ZONE_HDR+6+maxBH;
+
+  // Pass 2: correct bh from actual rendered heights, re-measure, re-place, reposition
+  function updateActualBH(node){
+    if(node._el)node.bh=node._el.offsetHeight;
+    node.children.forEach(c=>updateActualBH(c));
+  }
+  function reposition(node){
+    if(node._el){node._el.style.left=node.x+'px';node._el.style.top=node.y+'px';}
+    node.children.forEach(c=>reposition(c));
+  }
+  items.forEach(item=>updateActualBH(item));
+  items.forEach(item=>measureTreeDims(item));
+  x=MARGIN;
+  items.forEach(item=>{
+    placeTree(item,x,boxY);
+    x+=item.tw+gap;
+  });
+  items.forEach(item=>reposition(item));
+
+  const maxTH=Math.max(...items.map(i=>i.th));
+  return ZONE_HDR+6+maxTH;
 }
 
 function render(){
@@ -1255,6 +1309,8 @@ function render(){
   const{root,header,footer}=currentTree;
 
   measureTree(root,0);
+  header.forEach(item=>measureTree(item,0));
+  footer.forEach(item=>measureTree(item,0));
 
   const totalW=Math.max(
     root.tw+MARGIN*2,
@@ -1325,6 +1381,8 @@ function render(){
   container.insertBefore(svgEl,container.firstChild);
 
   drawConnectors(root,svgEl);
+  header.forEach(item=>drawConnectors(item,svgEl));
+  footer.forEach(item=>drawConnectors(item,svgEl));
 
 }
 
@@ -1527,6 +1585,7 @@ function downloadHTML(){
   const originalShowDetails=SHOW_DETAILS;
   const originalTabName=currentTabName;
   const savedUndo=undoStack.slice();
+  const exportInitialShowDetails=false; // exported HTML always opens with Details hidden, regardless of the live app's current state
 
   const titleEl=document.getElementById('map-title');
   const tabNames=sheetTabs.length?sheetTabs.map(t=>t.sheetName):[title];
@@ -1550,8 +1609,8 @@ function downloadHTML(){
   const initialIndex=Math.max(0,tabNames.indexOf(originalTabName));
   const tabOptions=tabNames.map((name,i)=>`<option value="${i}"${i===initialIndex?' selected':''}>${escapeHtml(name)}</option>`).join('');
   const tabWraps=svgByTab.map((svg,i)=>
-    `<div class="wrap" id="wrap-${i}-with"${i===initialIndex&&originalShowDetails?'':' style="display:none"'}>\n${svg.with}\n</div>\n`
-    +`<div class="wrap" id="wrap-${i}-without"${i===initialIndex&&!originalShowDetails?'':' style="display:none"'}>\n${svg.without}\n</div>\n`
+    `<div class="wrap" id="wrap-${i}-with"${i===initialIndex&&exportInitialShowDetails?'':' style="display:none"'}>\n${svg.with}\n</div>\n`
+    +`<div class="wrap" id="wrap-${i}-without"${i===initialIndex&&!exportInitialShowDetails?'':' style="display:none"'}>\n${svg.without}\n</div>\n`
   ).join('');
 
   const html='<!DOCTYPE html>\n'
@@ -1575,13 +1634,13 @@ function downloadHTML(){
     +'<div class="page">\n'
     +'<div class="toolbar">\n'
     +(tabNames.length>1?`<select class="tab-select" id="tab-select">${tabOptions}</select>\n`:'')
-    +'<label class="details-toggle"><input type="checkbox" id="details-checkbox"'+(originalShowDetails?' checked':'')+'><span class="switch-track"><span class="switch-thumb"></span></span><span>Details</span></label>\n'
+    +'<label class="details-toggle"><input type="checkbox" id="details-checkbox"'+(exportInitialShowDetails?' checked':'')+'><span class="switch-track"><span class="switch-thumb"></span></span><span>Details</span></label>\n'
     +'</div>\n'
     +tabWraps
     +'</div>\n'
     +'<script>\n'
     +`var currentTabIndex=${initialIndex};\n`
-    +'var detailsOn='+(originalShowDetails?'true':'false')+';\n'
+    +'var detailsOn='+(exportInitialShowDetails?'true':'false')+';\n'
     +'function updateVisible(){\n'
     +'  document.querySelectorAll(".wrap").forEach(function(w){w.style.display="none";});\n'
     +'  var el=document.getElementById("wrap-"+currentTabIndex+"-"+(detailsOn?"with":"without"));\n'
