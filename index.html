@@ -440,13 +440,43 @@ footer {
   background: #fff;
   text-align: center;
 }
+
+/* ── Review mode ─────────────────────────────────────────────
+   Activated by ?review=1 (usually inside review.html). Strips the
+   editor chrome down to a read-only, client-facing IA view: title,
+   version picker, Details toggle, clickable links — no drag/edit. */
+body.review-mode header,
+body.review-mode #sidebar,
+body.review-mode #align-bar,
+body.review-mode footer { display: none !important; }
+body.review-mode #canvas-area { padding-top: 24px; }
+body.review-mode #map-title { pointer-events: none; }
+body.review-mode .sm-box { cursor: default; }
+#review-tab-select {
+  display: none;
+  font-size: 13px;
+  color: #333;
+  padding: 5px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+#review-loading, #review-error {
+  font-size: 13px;
+  color: #888;
+  padding: 40px 0;
+}
+#review-error { color: #c0392b; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>Sitemapper</h1>
-  <button class="btn btn-success" onclick="downloadHTML()" title="Download a standalone, read-only HTML page to share with clients">↓ Download HTML</button>
+  <button class="btn btn-success" onclick="downloadHTML()" title="Download a standalone, read-only HTML snapshot to email or archive">↓ Download HTML</button>
+  <button class="btn" onclick="copyReviewLink()" title="Copy a live, client-facing review link that always reflects the latest Sheet">🔗 Copy Review Link</button>
   <div class="toolbar-sep"></div>
   <button class="btn" onclick="tidyUp()">Tidy Up</button>
   <div class="toolbar-sep"></div>
@@ -619,6 +649,7 @@ footer {
     <div id="map-title-wrap">
       <input id="map-title" type="text" placeholder="Sitemap title…" spellcheck="false"
         oninput="document.getElementById('sitemap-name').value=this.value">
+      <select id="review-tab-select" title="Version" onchange="showTab(this.value)"></select>
       <label id="details-toggle">
         <input type="checkbox" id="details-checkbox" checked onchange="onToggleDetails(this.checked)">
         <span class="switch-track"><span class="switch-thumb"></span></span>
@@ -655,6 +686,9 @@ const BULLET_LIST_W=220,BULLET_SIDE_GAP=12,BULLET_SIDE_W=220,V_BULLET_INDENT=34;
 const MARGIN=32,ZONE_GAP=36,ZONE_HDR=22;
 
 let SHOW_DETAILS=true;
+// Read-only client view (?review=1). Set once at load; drives which chrome
+// renders and disables dragging/selection in makeDraggable.
+const REVIEW_MODE=new URLSearchParams(location.search).get('review')==='1';
 // Notes are entirely omitted from measurement and rendering when details are
 // hidden, so boxes collapse to their bare title size instead of leaving a gap.
 function visibleBullets(x){return SHOW_DETAILS?(x.bullets||[]):[];}
@@ -1133,6 +1167,9 @@ function clearSelection(){
 function makeDraggable(el,node){
   node._el=el;
   allNodes.push(node);
+  // Review mode is read-only: keep _el (needed for height measurement) but
+  // attach no drag/select handlers, so links stay the only interaction.
+  if(REVIEW_MODE)return;
   let startMX,startMY,moved;
   let dragGroup,beforeSnap;
 
@@ -1675,7 +1712,9 @@ function lsSet(key,val){
   try{localStorage.setItem(key,val);}catch(e){/* storage unavailable */}
 }
 
-async function loadFromSheet(){
+// preferredTab (optional): when set (e.g. a review link's ?tab=), it wins over
+// the localStorage-remembered tab as the initial version to show.
+async function loadFromSheet(preferredTab){
   const urlEl=document.getElementById('sheet-url');
   const errEl=document.getElementById('sheet-err');
   const statusEl=document.getElementById('sheet-sync-status');
@@ -1691,16 +1730,30 @@ async function loadFromSheet(){
     lsSet('sitemapper.sheetUrl',url);
 
     const select=document.getElementById('sheet-tab-select');
-    select.innerHTML=sheetTabs.map(t=>`<option value="${t.sheetName}">${t.sheetName}</option>`).join('');
+    select.innerHTML=sheetTabs.map(t=>`<option value="${escapeHtml(t.sheetName)}">${escapeHtml(t.sheetName)}</option>`).join('');
     document.getElementById('sheet-tab-wrap').style.display=sheetTabs.length>1?'':'none';
 
+    const hasPreferred=preferredTab&&sheetTabs.some(t=>t.sheetName===preferredTab);
     const savedTab=lsGet('sitemapper.selectedTab');
-    const initialTab=sheetTabs.find(t=>t.sheetName===savedTab)?savedTab:sheetTabs[0].sheetName;
+    const initialTab=hasPreferred?preferredTab
+      :(sheetTabs.find(t=>t.sheetName===savedTab)?savedTab:sheetTabs[0].sheetName);
     select.value=initialTab;
+
+    // Version picker shown in the read-only review header (multi-version only).
+    const reviewSelect=document.getElementById('review-tab-select');
+    reviewSelect.innerHTML=sheetTabs.map(t=>`<option value="${escapeHtml(t.sheetName)}">${escapeHtml(t.sheetName)}</option>`).join('');
+    reviewSelect.value=initialTab;
+    reviewSelect.style.display=(REVIEW_MODE&&sheetTabs.length>1)?'inline-block':'none';
+
     showTab(initialTab);
     statusEl.textContent='Last synced '+new Date().toLocaleTimeString();
+    document.getElementById('review-loading')?.remove();
   }catch(e){
     errEl.textContent=e.message;errEl.style.display='block';
+    if(REVIEW_MODE){
+      const map=document.getElementById('map');
+      map.innerHTML='<div id="review-error">Couldn’t load this sitemap: '+escapeHtml(e.message)+'</div>';
+    }
   }
 }
 
@@ -1719,16 +1772,51 @@ function showTab(sheetName){
   if(!tab)return;
   currentTree=buildTreeFromPages(tab.pages);
   currentTabName=sheetName;
-  lsSet('sitemapper.selectedTab',sheetName);
+  if(!REVIEW_MODE)lsSet('sitemapper.selectedTab',sheetName); // don't let a client review link bleed into the editor's remembered tab
   document.getElementById('sitemap-name').value=sheetName;
   document.getElementById('map-title').value=sheetName;
+  document.getElementById('sheet-tab-select').value=sheetName;
+  document.getElementById('review-tab-select').value=sheetName;
   render();
 }
 
-const savedSheetUrl=lsGet('sitemapper.sheetUrl');
-if(savedSheetUrl){
-  document.getElementById('sheet-url').value=savedSheetUrl;
-  loadFromSheet();
+// Build the client-facing review URL: review.html (sitting alongside this
+// page) + the current Sheet URL and version, so the link always reflects the
+// latest Sheet content.
+function copyReviewLink(){
+  const sheet=document.getElementById('sheet-url').value.trim();
+  if(!sheet){alert('Load a Google Sheet first, then copy the review link.');return;}
+  const path=location.pathname.replace(/[^/]*$/,'review.html'); // swap index.html (or empty) for review.html
+  let url=location.origin+path+'?sheet='+encodeURIComponent(sheet);
+  if(currentTabName)url+='&tab='+encodeURIComponent(currentTabName);
+  const done=()=>alert('Review link copied to clipboard:\n\n'+url);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done,()=>prompt('Copy this review link:',url));
+  }else{
+    prompt('Copy this review link:',url);
+  }
+}
+
+if(REVIEW_MODE){
+  document.body.classList.add('review-mode');
+  document.getElementById('map-title').readOnly=true;
+  document.getElementById('details-checkbox').checked=false;
+  SHOW_DETAILS=false; // review pages open clean; the client opts into Details
+  const params=new URLSearchParams(location.search);
+  const sheet=params.get('sheet');
+  if(sheet){
+    document.getElementById('map').innerHTML='<div id="review-loading">Loading sitemap…</div>';
+    document.getElementById('sheet-url').value=sheet;
+    loadFromSheet(params.get('tab')||undefined);
+  }else{
+    document.getElementById('map').innerHTML='<div id="review-error">No sitemap specified in this link.</div>';
+  }
+}else{
+  const savedSheetUrl=lsGet('sitemapper.sheetUrl');
+  if(savedSheetUrl){
+    document.getElementById('sheet-url').value=savedSheetUrl;
+    loadFromSheet();
+  }
 }
 </script>
 </body>
