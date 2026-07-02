@@ -1,1 +1,3 @@
 .DS_Store
+# Local dev tooling — contains machine-specific absolute paths, never publish
+.claude/

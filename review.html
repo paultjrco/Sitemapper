@@ -12,13 +12,14 @@
 <body>
 <!--
   Client-facing review link. Keeps the URL clean (review.html?sheet=…) while
-  reusing the full render engine in index.html via ?review=1. No layout code is
-  duplicated here — the query string (sheet, tab) is forwarded into the iframe.
+  reusing the full render engine in index.html. index.html is read-only by
+  default (editing needs ?edit=1), so no mode flag is forwarded here — only the
+  sheet/tab query string is passed into the iframe.
 -->
 <iframe id="frame" title="Sitemap review"></iframe>
 <script>
   var qs = location.search.slice(1);
-  document.getElementById('frame').src = 'index.html?review=1' + (qs ? '&' + qs : '');
+  document.getElementById('frame').src = 'index.html' + (qs ? '?' + qs : '');
 </script>
 </body>
 </html>

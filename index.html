@@ -686,9 +686,12 @@ const BULLET_LIST_W=220,BULLET_SIDE_GAP=12,BULLET_SIDE_W=220,V_BULLET_INDENT=34;
 const MARGIN=32,ZONE_GAP=36,ZONE_HDR=22;
 
 let SHOW_DETAILS=true;
-// Read-only client view (?review=1). Set once at load; drives which chrome
+// Editing requires an explicit ?edit=1 flag. Every other URL — the site root,
+// review links, or a client deleting the query string — loads the read-only
+// client view, so the editor is never one URL-edit away. Drives which chrome
 // renders and disables dragging/selection in makeDraggable.
-const REVIEW_MODE=new URLSearchParams(location.search).get('review')==='1';
+const URL_PARAMS=new URLSearchParams(location.search);
+const REVIEW_MODE=URL_PARAMS.get('edit')!=='1';
 // Notes are entirely omitted from measurement and rendering when details are
 // hidden, so boxes collapse to their bare title size instead of leaving a gap.
 function visibleBullets(x){return SHOW_DETAILS?(x.bullets||[]):[];}
@@ -1802,12 +1805,11 @@ if(REVIEW_MODE){
   document.getElementById('map-title').readOnly=true;
   document.getElementById('details-checkbox').checked=false;
   SHOW_DETAILS=false; // review pages open clean; the client opts into Details
-  const params=new URLSearchParams(location.search);
-  const sheet=params.get('sheet');
+  const sheet=URL_PARAMS.get('sheet');
   if(sheet){
     document.getElementById('map').innerHTML='<div id="review-loading">Loading sitemap…</div>';
     document.getElementById('sheet-url').value=sheet;
-    loadFromSheet(params.get('tab')||undefined);
+    loadFromSheet(URL_PARAMS.get('tab')||undefined);
   }else{
     document.getElementById('map').innerHTML='<div id="review-error">No sitemap specified in this link.</div>';
   }
