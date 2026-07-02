@@ -494,6 +494,10 @@ footer {
           <button class="btn btn-primary" onclick="loadFromSheet()" style="width:100%">Reload</button>
           <div id="sheet-sync-status">Not synced yet</div>
           <div id="sheet-err"></div>
+          <div id="sheet-tab-wrap" style="display:none;margin-top:10px;">
+            <h2 style="margin-bottom:6px">Version</h2>
+            <select id="sheet-tab-select" style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;font-family:inherit;background:#fafafa;" onchange="onSelectTab(this.value)"></select>
+          </div>
         </div>
 
       </div><!-- #tab-data -->
@@ -701,8 +705,7 @@ function buildFlatZoneFromSheet(items){
   return items.map(p=>({page:p.name,bullets:p.notes||[]}));
 }
 
-function buildTreeFromSheetJSON(data){
-  const pages=Array.isArray(data.pages)?data.pages:[];
+function buildTreeFromPages(pages){
   const bySection={main:[],header:[],footer:[]};
   pages.forEach(p=>{
     const section=(p.section||'main').toLowerCase();
@@ -831,6 +834,7 @@ function treeExtent(node){
 
 let currentTree=null;
 let svgEl=null;
+let sheetTabs=[]; // [{sheetName, pages}, ...] from the last successful sheet fetch
 
 function updateConnectors(){
   if(!svgEl||!currentTree||!currentTree.root)return;
@@ -1587,19 +1591,42 @@ async function loadFromSheet(){
     const res=await fetch(url);
     if(!res.ok)throw new Error(`Request failed: ${res.status} ${res.statusText}`);
     const data=await res.json();
-    currentTree=buildTreeFromSheetJSON(data);
+    if(!Array.isArray(data.tabs)||!data.tabs.length)throw new Error('No tabs found in this JSON — expected {tabs:[{sheetName,pages},...]}.');
+    sheetTabs=data.tabs;
     lsSet('sitemapper.sheetUrl',url);
-    const nameEl=document.getElementById('sitemap-name');
-    if(!nameEl.value.trim()){
-      const name=cellText(currentTree.root.page)||'Sitemap';
-      nameEl.value=name;
-      document.getElementById('map-title').value=name;
-    }
-    render();
+
+    const select=document.getElementById('sheet-tab-select');
+    select.innerHTML=sheetTabs.map(t=>`<option value="${t.sheetName}">${t.sheetName}</option>`).join('');
+    document.getElementById('sheet-tab-wrap').style.display=sheetTabs.length>1?'':'none';
+
+    const savedTab=lsGet('sitemapper.selectedTab');
+    const initialTab=sheetTabs.find(t=>t.sheetName===savedTab)?savedTab:sheetTabs[0].sheetName;
+    select.value=initialTab;
+    showTab(initialTab);
     statusEl.textContent='Last synced '+new Date().toLocaleTimeString();
   }catch(e){
     errEl.textContent=e.message;errEl.style.display='block';
   }
+}
+
+function onSelectTab(sheetName){
+  const errEl=document.getElementById('sheet-err');
+  errEl.style.display='none';
+  try{
+    showTab(sheetName);
+  }catch(e){
+    errEl.textContent=e.message;errEl.style.display='block';
+  }
+}
+
+function showTab(sheetName){
+  const tab=sheetTabs.find(t=>t.sheetName===sheetName);
+  if(!tab)return;
+  currentTree=buildTreeFromPages(tab.pages);
+  lsSet('sitemapper.selectedTab',sheetName);
+  document.getElementById('sitemap-name').value=sheetName;
+  document.getElementById('map-title').value=sheetName;
+  render();
 }
 
 const savedSheetUrl=lsGet('sitemapper.sheetUrl');
