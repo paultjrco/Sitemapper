@@ -94,6 +94,7 @@
           "level": 2,
           "name": "About",
           "parent": "Homepage",
+          "type": "grouping",
           "notes": [
             "About Us",
             "Our Team",
