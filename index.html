@@ -95,56 +95,6 @@ main {
   margin-bottom: 2px;
 }
 
-textarea {
-  width: 100%;
-  height: 200px;
-  font-size: 11px;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  resize: vertical;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: #fafafa;
-  color: #1a1a1a;
-  line-height: 1.5;
-  tab-size: 2;
-}
-
-.outline-wrap {
-  display: flex;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: #fafafa;
-  overflow: hidden;
-  height: 200px;
-}
-#outline-gutter {
-  flex: 0 0 auto;
-  min-width: 26px;
-  padding: 8px 6px 8px 8px;
-  font-size: 11px;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  line-height: 1.5;
-  color: #aaa;
-  text-align: right;
-  white-space: pre;
-  user-select: none;
-  overflow: hidden;
-  background: #f0efeb;
-  border-right: 1px solid #e2e0da;
-}
-#outline {
-  flex: 1;
-  height: auto;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  white-space: pre;
-  overflow-x: auto;
-  resize: none;
-}
-textarea:focus { outline: none; border-color: #999; }
-
 .hint {
   font-size: 11px;
   color: #888;
@@ -158,51 +108,7 @@ textarea:focus { outline: none; border-color: #999; }
   font-size: 10px;
 }
 
-.sample-btns {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.sample-btns .btn { width: 100%; text-align: left; font-size: 12px; }
-
-#version-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
-}
-.version-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-.version-row .version-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-  color: #1a1a1a;
-  text-align: left;
-  background: none;
-  border: none;
-  padding: 4px 6px;
-  border-radius: 4px;
-}
-.version-row .version-name:hover { background: #f5f5f3; }
-.version-row .version-del {
-  border: none;
-  background: none;
-  color: #aaa;
-  cursor: pointer;
-  font-size: 13px;
-  padding: 2px 6px;
-  line-height: 1;
-}
-.version-row .version-del:hover { color: #c0392b; }
-
-#err, #sheet-err {
+#sheet-err {
   color: #c0392b;
   font-size: 12px;
   background: #fdecea;
@@ -210,6 +116,11 @@ textarea:focus { outline: none; border-color: #999; }
   border-radius: 6px;
   padding: 8px 10px;
   display: none;
+}
+#sheet-sync-status {
+  font-size: 11px;
+  color: #888;
+  margin-top: 6px;
 }
 
 #export-area {
@@ -246,6 +157,9 @@ textarea:focus { outline: none; border-color: #999; }
 
 #map-title-wrap {
   margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 #map-title {
@@ -255,13 +169,54 @@ textarea:focus { outline: none; border-color: #999; }
   border: none;
   outline: none;
   background: transparent;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   font-family: inherit;
   padding: 2px 0;
   border-bottom: 2px solid transparent;
 }
 #map-title:focus { border-bottom-color: #ddd; }
 #map-title::placeholder { color: #ccc; }
+
+#details-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#details-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+#details-toggle .switch-track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  background: #ddd;
+  border-radius: 9px;
+  transition: background 150ms ease;
+  flex-shrink: 0;
+}
+#details-toggle .switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform 150ms ease;
+}
+#details-toggle input:checked + .switch-track { background: #1a1a1a; }
+#details-toggle input:checked + .switch-track .switch-thumb { transform: translateX(14px); }
 
 #map {
   position: relative;
@@ -288,7 +243,7 @@ textarea:focus { outline: none; border-color: #999; }
 .sm-card {
   position: relative;
   width: var(--sm-box-w, 95px);
-  min-height: var(--sm-box-min-h, 32px);
+  min-height: var(--sm-box-min-h, 60px);
   border-radius: var(--sm-box-radius, 4px);
   border-width: var(--sm-box-stroke-w, 2.5px);
   border-style: solid;
@@ -488,9 +443,7 @@ footer {
 
 <header>
   <h1>Sitemapper</h1>
-  <button class="btn btn-success" onclick="downloadSVG()">↓ SVG</button>
-  <button class="btn btn-success" onclick="downloadPNG()">↓ PNG</button>
-  <button class="btn btn-success" onclick="publishHTML()" title="Download a standalone, read-only HTML page to share with clients">↓ Publish HTML</button>
+  <button class="btn btn-success" onclick="downloadHTML()" title="Download a standalone, read-only HTML page to share with clients">↓ Download HTML</button>
   <div class="toolbar-sep"></div>
   <button class="btn" onclick="tidyUp()">Tidy Up</button>
   <div class="toolbar-sep"></div>
@@ -531,47 +484,16 @@ footer {
             oninput="document.getElementById('map-title').value=this.value">
         </div>
 
-        <div class="hint">
-          Start with <code>[Main]</code>, then list pages, one per line.<br>
-          Press <code>Tab</code> to nest a page under the one above it, <code>Shift+Tab</code> to un-nest.<br>
-          Bullets: indent one level deeper and start the line with <code>- </code><br>
-          Add a <code>[Header]</code> and/or <code>[Footer]</code> section (own line, no indent) for nav items — those are always a flat row, no nesting.<br>
-          The left column numbers each page (Level 1, 1.1, 1.2, …) so you can see where it sits in the hierarchy.<br>
-          <code>Cmd/Ctrl+Enter</code> regenerates the map from anywhere in this box.
-        </div>
-
-        <div class="outline-wrap">
-          <div id="outline-gutter" aria-hidden="true"></div>
-          <textarea id="outline" placeholder="[Main]&#10;Homepage&#10;&#9;- Hero&#10;&#9;About&#10;&#9;&#9;- Team&#10;&#9;&#9;- Mission&#10;&#9;Contact&#10;&#10;[Header]&#10;Search&#10;&#10;[Footer]&#10;Privacy Policy"></textarea>
-        </div>
-
-        <button class="btn btn-primary" onclick="generate()" style="width:100%" title="Generate (Cmd/Ctrl+Enter)">Generate</button>
-
-        <div id="err"></div>
-
         <div>
-          <h2 style="margin-bottom:6px">Import from Google Sheet</h2>
+          <h2 style="margin-bottom:6px">Google Sheet</h2>
           <div class="hint">
-            Paste the JSON URL published by your Sheet's Apps Script (or any JSON file matching that shape). Loading a sheet replaces the current map and bypasses the outline text above — edit the sheet and load again to update.
+            Paste the JSON URL published by your Sheet's Apps Script. Edit the sheet, then click Reload to pull the latest content.
           </div>
           <input type="text" id="sheet-url" placeholder="https://script.google.com/macros/…/exec"
             style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;font-family:inherit;background:#fafafa;margin-bottom:6px;">
-          <button class="btn" onclick="loadFromSheet()" style="width:100%">Load from Sheet</button>
+          <button class="btn btn-primary" onclick="loadFromSheet()" style="width:100%">Reload</button>
+          <div id="sheet-sync-status">Not synced yet</div>
           <div id="sheet-err"></div>
-        </div>
-
-        <div>
-          <h2 style="margin-bottom:6px">Versions</h2>
-          <div class="sample-btns">
-            <button class="btn" onclick="loadDefault()">Reset to Default</button>
-            <button class="btn" onclick="setAsDefault()">Set Current as Default</button>
-            <button class="btn" onclick="clearCustomDefault()">Clear Custom Default</button>
-            <button class="btn" onclick="saveVersion()">Save Version…</button>
-            <button class="btn" onclick="document.getElementById('import-published').click()">Import from Published HTML…</button>
-            <input type="file" id="import-published" accept=".html,text/html" style="display:none"
-              onchange="if(this.files[0])importPublishedHTML(this.files[0]);this.value='';">
-          </div>
-          <div id="version-list"></div>
         </div>
 
       </div><!-- #tab-data -->
@@ -626,8 +548,8 @@ footer {
           </div>
           <div class="design-row">
             <label>Min Height</label>
-            <input type="range" min="20" max="120" step="1" value="32" oninput="onBoxMinHeight(this.value)">
-            <span class="val" id="lbl-box-min-h">32px</span>
+            <input type="range" min="20" max="120" step="1" value="60" oninput="onBoxMinHeight(this.value)">
+            <span class="val" id="lbl-box-min-h">60px</span>
           </div>
           <div class="design-row">
             <label>Stroke Width</label>
@@ -690,197 +612,21 @@ footer {
     <div id="map-title-wrap">
       <input id="map-title" type="text" placeholder="Sitemap title…" spellcheck="false"
         oninput="document.getElementById('sitemap-name').value=this.value">
+      <label id="details-toggle">
+        <input type="checkbox" id="details-checkbox" checked onchange="onToggleDetails(this.checked)">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+        <span class="switch-label">Details</span>
+      </label>
     </div>
     <div id="map"></div>
   </div>
 </main>
 
 <footer>
-  Sitemapper &nbsp;·&nbsp; Drag to reposition &nbsp;·&nbsp; Prepare Export for SVG and PNG
+  Sitemapper &nbsp;·&nbsp; Drag to reposition &nbsp;·&nbsp; Download HTML to share
 </footer>
 
 <script>
-const TVCC=`[Main]
-Homepage
-	- Hero with audience cards
-	- Featured Workshops
-	- Upcoming Events
-	- Quick Links / CTAs
-	Job Seekers
-		- Career Services & Counseling
-		- Workshops & Events
-		- Job Board
-		- Training Opportunities
-		- Resources & Community Support
-		- Tip Sheets
-		- Free Tax Preparation
-		- EDD Information
-		- Have a Question?
-		Career Services & Counseling
-			- One-on-One Career Counseling
-			- Start with an Orientation
-			- What Career Counseling Covers
-			- Job Clubs
-			- Workspace & Resources
-			- Visit Us
-		Workshops & Events
-			- Workshop Topics
-			- How to Register
-			- Job Fairs & Hiring Events
-		Job Board
-			- What You'll Find
-			- How to Use the Job Board
-			- Want to Post a Job?
-			- Need Help with Your Search?
-		Training Opportunities
-			- WIOA-Funded Training
-			- Forklift & OSHA Safety Training
-			- Typing Tests
-			- Microsoft Office Training
-			- Apprenticeships
-			- Year to Career
-			- Online Training Options
-		Resources & Community Support
-			- Crisis Support
-			- Food Resources
-			- Housing Assistance
-			- Financial Assistance
-			- Health & Mental Health
-			- Legal Resources
-			- Disability Support
-			- Childcare
-			- Transportation
-		Tip Sheets
-			- Preparation
-			- Resources
-			- Resumes Cover Letters & Applications
-			- Networking & Job Fairs
-			- Interviewing
-			- Follow-Up & Negotiation
-		Free Tax Preparation
-			- Who Qualifies
-			- What to Bring
-			- Service Options
-			- Returns We Cannot Accommodate
-			- Volunteer with Us
-			- Make an Appointment
-		EDD Information
-			- Unemployment Insurance
-			- Phone Numbers
-			- East Bay EDD Offices
-			- Additional Employment Support
-			- Disability Support
-			- Forms Available at Our Office
-		FAQs for Job Seekers
-			- Can you find me a job?
-			- What is WIOA?
-			- Do I need to enroll in WIOA?
-			- What do I get out of enrolling?
-			- Who can enroll?
-			- What is the first step?
-			- How much do services cost?
-			- I just lost my job where do I start?
-			- Can you help pay for training?
-	Employers
-		- Employer Services
-		- Post a Job
-		- Hiring Events
-		- Training Assistance
-		- Labor Market Information
-		- Small Business Resources
-		- Have a Question?
-		Employer Services
-			- Free Job Listings
-			- Candidate Referrals
-			- Consultation on Job Descriptions
-			- Recruitment Events
-			- Job Fair Participation
-			- Employer Tip Sheets
-			- Contact Our Employer Liaison
-		Post a Job
-			- How to Post a Job
-			- Want More Support?
-			- Also Post with Our College Partners
-		Hiring Events
-			- Annual Job Fairs
-			- Upcoming Job Fairs
-			- Recruitment Events at TVCC
-		Training Assistance
-			- On-the-Job Training (OJT)
-			- Customized Training
-			- OSHA Safety Training
-			- Apprenticeship Programs
-		Labor Market Information
-			- Local & Regional Resources
-			- State Resources
-			- National Resources
-			- Downloadable Resources
-		Small Business Resources
-			- State Resources
-			- Workforce & Training Resources
-			- Tri-Valley Resources
-			- City Resources
-		FAQs for Employers
-			- Are your services free?
-			- How do I post a job?
-			- Can you screen candidates?
-			- What is OJT?
-			- How do I join a job fair?
-			- Can I host a recruitment event?
-			- Are you a staffing agency?
-	About
-		- About TVCC
-		- Our Team
-		- Community Partners
-		- Success Stories
-		- Contact Us
-		About TVCC
-			- Our Approach
-			- Funding & Affiliations
-			- Chabot-Las Positas Community College District
-			- Alameda County Workforce Development Board
-			- EastBay Works
-		Our Team
-			- Staff
-			- Affiliates
-		Community Partners
-			- Community Colleges & College Programs
-			- State & County Agencies
-			- Cities
-			- Chambers of Commerce
-			- Libraries
-			- School Districts & Adult Schools
-			- Local Nonprofits
-		Success Stories
-			- Job Seekers
-			- Employers
-		Contact Us
-			- Visit Us
-			- Call Us
-			- Hours
-			- Contact Form
-			- Specific Contacts
-
-[Header]
-Job Board
-	- External link to Madgex job board
-Workshop Calendar
-	- External link to MyActiveCenter
-Newsletter Signup
-	- External link to Constant Contact
-Search
-	- Site search (MC built-in)
-
-[Footer]
-Job Board
-	- Link to Madgex job board
-Workshop Calendar
-	- Link to MyActiveCenter
-Newsletter Signup
-	- Link to Constant Contact
-Language Toggle
-	- English / Español`;
-
 
 const COLORS=[
   {fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'},
@@ -896,122 +642,22 @@ let H_GAP_MAIN=22,H_GAP_HEADER=22,H_GAP_FOOTER=22;
 const H_ROW=36,V_GAP=8,V_DOWN=20,V_RIGHT=20;
 let BOX_RADIUS=4;
 let BOX_STROKE_W=2.5;
-let BOX_MIN_H=32;
+let BOX_MIN_H=60;
 let CONNECTOR_COLOR='#C0BDB6',CONNECTOR_W=0.8;
 const BULLET_LIST_W=220,BULLET_SIDE_GAP=12,BULLET_SIDE_W=220,V_BULLET_INDENT=34;
 const MARGIN=32,ZONE_GAP=36,ZONE_HDR=22;
 
+let SHOW_DETAILS=true;
+// Notes are entirely omitted from measurement and rendering when details are
+// hidden, so boxes collapse to their bare title size instead of leaving a gap.
+function visibleBullets(x){return SHOW_DETAILS?(x.bullets||[]):[];}
+
+function onToggleDetails(checked){
+  SHOW_DETAILS=checked;
+  if(currentTree)render();
+}
+
 function col(d){return COLORS[Math.min(d,COLORS.length-1)];}
-
-const SECTION_MARKER=/^\[(main|header|footer)\]$/i;
-
-function splitOutlineSections(raw){
-  const rawLines=raw.replace(/\r\n?/g,'\n').split('\n');
-  const sections={main:[],header:[],footer:[]};
-  let current=null;
-  rawLines.forEach(line=>{
-    if(!line.trim())return;
-    const depth=(line.match(/^\t*/)[0]).length;
-    const text=line.slice(depth).trim();
-    const marker=depth===0&&text.match(SECTION_MARKER);
-    if(marker){
-      current=marker[1].toLowerCase();
-      return;
-    }
-    if(!current) throw new Error('Start the outline with a "[Main]" line, then list your pages indented below it.');
-    sections[current].push({depth,text});
-  });
-  return sections;
-}
-
-function computeOutlineNumbers(raw){
-  const rawLines=raw.replace(/\r\n?/g,'\n').split('\n');
-  let current=null;
-  const counters=[];
-  return rawLines.map(line=>{
-    if(!line.trim())return '';
-    const depth=(line.match(/^\t*/)[0]).length;
-    const text=line.slice(depth).trim();
-    const marker=depth===0&&text.match(SECTION_MARKER);
-    if(marker){
-      current=marker[1].toLowerCase();
-      counters.length=0;
-      return '';
-    }
-    if(!current||text.startsWith('- '))return '';
-    if(current==='main'){
-      if(depth===0)return '';
-      const numDepth=depth-1;
-      counters[numDepth]=(counters[numDepth]||0)+1;
-      counters.length=numDepth+1;
-      const num=counters.map(n=>n||1).join('.');
-      return num.includes('.')?num:num+'.0';
-    }
-    counters[0]=(counters[0]||0)+1;
-    counters.length=1;
-    return counters[0]+'.0';
-  });
-}
-
-function updateOutlineGutter(){
-  const ta=document.getElementById('outline');
-  const gutter=document.getElementById('outline-gutter');
-  const numbers=computeOutlineNumbers(ta.value);
-  gutter.innerHTML=numbers.map(n=>'<div>'+(n||'&nbsp;')+'</div>').join('');
-  gutter.scrollTop=ta.scrollTop;
-}
-
-function buildMainTree(lines){
-  const stack=[];
-  let root=null;
-  lines.forEach(({depth,text})=>{
-    if(text.startsWith('- ')){
-      const owner=stack[depth-1];
-      const bulletText=text.slice(2).trim();
-      if(owner&&bulletText)owner.bullets.push(bulletText);
-      return;
-    }
-    const node={page:text,bullets:[],children:[],vmode:true,dx:0,dy:0};
-    if(depth===0){
-      if(root) throw new Error(`Main can only have one top-level page — found a second one: "${text}".`);
-      root=node;
-    } else {
-      const parent=stack[depth-1];
-      if(!parent) throw new Error(`"${text}" is indented without a page above it at the previous level — check the tabs.`);
-      parent.children.push(node);
-    }
-    stack[depth]=node;
-    stack.length=depth+1;
-  });
-  if(!root) throw new Error('Main needs at least one page.');
-  root.vmode=false;
-  return root;
-}
-
-function buildFlatZone(lines){
-  const items=[];
-  let last=null;
-  lines.forEach(({text})=>{
-    if(text.startsWith('- ')){
-      const bulletText=text.slice(2).trim();
-      if(last&&bulletText)last.bullets.push(bulletText);
-      return;
-    }
-    const item={page:text,bullets:[]};
-    items.push(item);
-    last=item;
-  });
-  return items;
-}
-
-function buildTreeFromOutline(raw){
-  const sections=splitOutlineSections(raw);
-  return{
-    root:buildMainTree(sections.main),
-    header:buildFlatZone(sections.header),
-    footer:buildFlatZone(sections.footer)
-  };
-}
 
 // A "cell" from sheet-import JSON is either a plain string or {text,url}.
 function cellText(v){return typeof v==='string'?v:(v&&v.text)||'';}
@@ -1028,7 +674,11 @@ function linkify(el,url){
 
 function buildMainFromSheet(items){
   const byKey=new Map();
-  items.forEach(p=>byKey.set(cellText(p.name),{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0}));
+  items.forEach(p=>{
+    const key=cellText(p.name);
+    if(byKey.has(key)) throw new Error(`"${key}" appears more than once in the Main section — page names must be unique since Parent refers to them by name. Check for a duplicate row.`);
+    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0});
+  });
   let root=null;
   items.forEach(p=>{
     const key=cellText(p.name);
@@ -1106,6 +756,8 @@ function bulletMode(node){
   return 'below';
 }
 
+// Width always reserves space as if notes were showing — only measureBH (height)
+// respects the Details toggle — so hiding notes never reflows anything horizontally.
 function nodeW(node){
   if(!node.bullets?.length)return BOX_W;
   return bulletMode(node)==='side'?BOX_W+BULLET_SIDE_GAP+BULLET_SIDE_W:Math.max(BOX_W,BULLET_LIST_W);
@@ -1151,7 +803,7 @@ function measureTreeDims(node){
 function measureTree(node,depth){
   node.depth=depth;
   node.children.forEach(c=>measureTree(c,depth+1));
-  node.bh=measureBH(node.bullets,bulletMode(node));
+  node.bh=measureBH(visibleBullets(node),bulletMode(node));
   measureTreeDims(node);
 }
 
@@ -1373,49 +1025,6 @@ document.getElementById('canvas-area').addEventListener('mousedown',e=>{
   if(e.target===e.currentTarget||e.target.id==='map') clearSelection();
 });
 
-document.getElementById('outline').addEventListener('keydown',e=>{
-  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
-    e.preventDefault();
-    generate();
-    return;
-  }
-  if(e.key!=='Tab')return;
-  e.preventDefault();
-  const ta=e.target;
-  const val=ta.value;
-  const selStart=ta.selectionStart,selEnd=ta.selectionEnd;
-  const lineStart=val.lastIndexOf('\n',selStart-1)+1;
-  const lineEndSearchFrom=(selEnd>selStart&&val[selEnd-1]==='\n')?selEnd-1:selEnd;
-  let lineEnd=val.indexOf('\n',lineEndSearchFrom);
-  if(lineEnd===-1)lineEnd=val.length;
-  const block=val.slice(lineStart,lineEnd);
-  const lines=block.split('\n');
-  let firstLineDelta=0;
-  const newLines=lines.map((line,i)=>{
-    if(e.shiftKey){
-      if(line.startsWith('\t')){
-        if(i===0)firstLineDelta=-1;
-        return line.slice(1);
-      }
-      return line;
-    } else {
-      if(i===0)firstLineDelta=1;
-      return '\t'+line;
-    }
-  });
-  const newBlock=newLines.join('\n');
-  ta.value=val.slice(0,lineStart)+newBlock+val.slice(lineEnd);
-  const lenDiff=newBlock.length-block.length;
-  ta.selectionStart=Math.max(lineStart,selStart+firstLineDelta);
-  ta.selectionEnd=selEnd+lenDiff;
-  updateOutlineGutter();
-});
-
-document.getElementById('outline').addEventListener('input',updateOutlineGutter);
-document.getElementById('outline').addEventListener('scroll',()=>{
-  document.getElementById('outline-gutter').scrollTop=document.getElementById('outline').scrollTop;
-});
-
 function updateAlignBar(){
   const n=selectedNodes.size;
   const bar=document.getElementById('align-bar');
@@ -1548,7 +1157,9 @@ function renderBox(node,container){
   const c=col(node.depth);
   const mode=bulletMode(node);
   const el=document.createElement('div');
-  el.className='sm-box'+(node.bullets.length?' has-bullets':'')+(mode==='side'?' bullets-side':mode==='indent'?' has-children-v':'');
+  const hasBullets=(node.bullets||[]).length>0;
+  const bullets=visibleBullets(node);
+  el.className='sm-box'+(hasBullets?' has-bullets':'')+(mode==='side'?' bullets-side':mode==='indent'?' has-children-v':'');
   el.dataset.depth=node.depth;
   el.style.cssText=`left:${node.x}px;top:${node.y}px`;
 
@@ -1564,10 +1175,10 @@ function renderBox(node,container){
   linkify(title,cellUrl(node.page));
   card.appendChild(title);
 
-  if(node.bullets.length){
+  if(bullets.length){
     const list=document.createElement('div');
     list.className='sm-bullet-list';
-    node.bullets.forEach(b=>{
+    bullets.forEach(b=>{
       const d=document.createElement('div');
       d.className='sm-bullet';d.style.color=c.bullet;d.textContent=cellText(b);
       linkify(d,cellUrl(b));
@@ -1594,10 +1205,12 @@ function renderZone(items,container,label,yStart,totalW,gap){
   container.appendChild(rule);
   let x=MARGIN;const boxY=yStart+ZONE_HDR+4;let maxBH=0;
   items.forEach(item=>{
-    const bh=measureBH(item.bullets);maxBH=Math.max(maxBH,bh);
+    const hasBullets=(item.bullets||[]).length>0;
+    const bullets=visibleBullets(item);
+    const bh=measureBH(bullets);maxBH=Math.max(maxBH,bh);
     const c=ZONE_COLOR;
     const el=document.createElement('div');
-    el.className='sm-box'+(item.bullets.length?' has-bullets':'');
+    el.className='sm-box'+(hasBullets?' has-bullets':'');
     el.dataset.depth='zone';
     el.style.cssText=`left:${x}px;top:${boxY}px`;
     const card=document.createElement('div');
@@ -1608,10 +1221,10 @@ function renderZone(items,container,label,yStart,totalW,gap){
     title.className='sm-title';title.style.color=c.title;title.textContent=cellText(item.page);
     linkify(title,cellUrl(item.page));
     card.appendChild(title);
-    if(item.bullets.length){
+    if(bullets.length){
       const list=document.createElement('div');
       list.className='sm-bullet-list';
-      item.bullets.forEach(b=>{
+      bullets.forEach(b=>{
         const d=document.createElement('div');
         d.className='sm-bullet';d.style.color=c.bullet;d.textContent=cellText(b);
         linkify(d,cellUrl(b));
@@ -1646,14 +1259,14 @@ function render(){
 
   let cy=MARGIN;
 
-  const hdrH=renderZone(header,container,'Header / Utility Nav',cy,totalW,H_GAP_HEADER);
+  const hdrH=renderZone(header,container,'header',cy,totalW,H_GAP_HEADER);
   if(hdrH)cy+=hdrH+ZONE_GAP;
 
   // Main site label
   const mainLbl=document.createElement('div');
   mainLbl.className='zone-label';
   mainLbl.style.cssText=`top:${cy}px;left:${MARGIN}px`;
-  mainLbl.textContent='Main Site';
+  mainLbl.textContent='main';
   container.appendChild(mainLbl);
   const mainRule=document.createElement('hr');
   mainRule.className='zone-rule';
@@ -1693,7 +1306,7 @@ function render(){
   const[mx,my]=treeExtent(root);
   cy=my+ZONE_GAP;
 
-  const ftrH=renderZone(footer,container,'Footer Nav',cy,totalW,H_GAP_FOOTER);
+  const ftrH=renderZone(footer,container,'footer',cy,totalW,H_GAP_FOOTER);
   const finalH=cy+(ftrH||0)+MARGIN;
   const finalW=Math.max(mx+MARGIN,totalW);
 
@@ -1708,25 +1321,6 @@ function render(){
 
   drawConnectors(root,svgEl);
 
-}
-
-function generate(){
-  const raw=document.getElementById('outline').value.trim();
-  const errEl=document.getElementById('err');
-  errEl.style.display='none';
-  if(!raw){errEl.textContent='Type or paste an outline first.';errEl.style.display='block';return;}
-  try{
-    currentTree=buildTreeFromOutline(raw);
-    // Auto-populate name from root page if blank
-    if(!document.getElementById('sitemap-name').value.trim()){
-      const name=cellText(currentTree.root.page)||'Sitemap';
-      document.getElementById('sitemap-name').value=name;
-      document.getElementById('map-title').value=name;
-    }
-    render();
-  }catch(e){
-    errEl.textContent=e.message;errEl.style.display='block';
-  }
 }
 
 function wrapSVGText(text,maxWidth,fontSize){
@@ -1744,7 +1338,20 @@ function wrapSVGText(text,maxWidth,fontSize){
   return lines.length?lines:[text];
 }
 
-function buildSVGString(){
+// If href is set, creates an <a> under parent and returns it (so callers can
+// append linked content there); otherwise just returns parent unchanged.
+function svgLinkWrap(ns,parent,href){
+  if(!href)return parent;
+  const a=document.createElementNS(ns,'a');
+  a.setAttribute('href',href);
+  a.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href',href);
+  a.setAttribute('target','_blank');
+  parent.appendChild(a);
+  return a;
+}
+
+function buildSVGString(filterId){
+  filterId=filterId||'boxShadow';
   const map=document.getElementById('map');
   const mapW=parseInt(map.style.width),mapH=parseInt(map.style.height);
   const ns='http://www.w3.org/2000/svg';
@@ -1756,6 +1363,7 @@ function buildSVGString(){
 
   const svg=document.createElementNS(ns,'svg');
   svg.setAttribute('xmlns',ns);
+  svg.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
   svg.setAttribute('width',totalW);svg.setAttribute('height',totalH);
   svg.setAttribute('viewBox',`0 0 ${totalW} ${totalH}`);
 
@@ -1766,7 +1374,7 @@ function buildSVGString(){
 
   const defs=document.createElementNS(ns,'defs');
   const filter=document.createElementNS(ns,'filter');
-  filter.setAttribute('id','boxShadow');
+  filter.setAttribute('id',filterId);
   filter.setAttribute('x','-20%');filter.setAttribute('y','-20%');
   filter.setAttribute('width','140%');filter.setAttribute('height','150%');
   const drop=document.createElementNS(ns,'feDropShadow');
@@ -1835,7 +1443,7 @@ function buildSVGString(){
     rect.setAttribute('width',BOX_W);rect.setAttribute('height',cardHeight);
     rect.setAttribute('rx',BOX_RADIUS);rect.setAttribute('fill',card?card.style.background:box.style.background);
     rect.setAttribute('stroke',card?card.style.borderColor:box.style.borderColor);rect.setAttribute('stroke-width',BOX_STROKE_W);
-    rect.setAttribute('filter','url(#boxShadow)');
+    rect.setAttribute('filter',`url(#${filterId})`);
     bg2.appendChild(rect);
 
     const titleEl=box.querySelector('.sm-title');
@@ -1847,13 +1455,15 @@ function buildSVGString(){
       const lineH=fSize*1.3;
       const blockH=lines.length*lineH;
       const startY=by+(cardHeight/2)-(blockH/2)+(fSize*0.85);
+      const titleTarget=svgLinkWrap(ns,bg2,titleEl.dataset.href);
       lines.forEach((ln,i)=>{
         const t=document.createElementNS(ns,'text');
         t.setAttribute('x',bx+BOX_W/2);t.setAttribute('y',startY+i*lineH);
         t.setAttribute('font-size',fSize);t.setAttribute('font-weight','700');
         t.setAttribute('text-anchor','middle');
         t.setAttribute('fill',titleEl.style.color);t.setAttribute('font-family',FONT);
-        t.textContent=ln;bg2.appendChild(t);
+        if(titleEl.dataset.href)t.setAttribute('text-decoration','underline');
+        t.textContent=ln;titleTarget.appendChild(t);
       });
     }
 
@@ -1864,6 +1474,7 @@ function buildSVGString(){
       const textX=elLeft+8;
       const maxW=(bEl.offsetWidth?bEl.offsetWidth-8:BOX_W-26);
       const lines=wrapSVGText(bEl.textContent,maxW,bulletSizePx);
+      const bulletTarget=svgLinkWrap(ns,bg2,bEl.dataset.href);
       const bullet=document.createElementNS(ns,'text');
       bullet.setAttribute('x',elLeft);
       bullet.setAttribute('y',elTop+Math.ceil(bulletSizePx*0.85));
@@ -1871,13 +1482,15 @@ function buildSVGString(){
       bullet.setAttribute('fill',bEl.style.color);
       bullet.setAttribute('font-family',FONT);
       bullet.textContent='•';
-      bg2.appendChild(bullet);
+      bulletTarget.appendChild(bullet);
       lines.forEach((ln,i)=>{
         const t=document.createElementNS(ns,'text');
         t.setAttribute('x',textX);
         t.setAttribute('y',elTop+Math.ceil(bulletSizePx*0.85)+i*lineH);
         t.setAttribute('font-size',bulletSizePx);t.setAttribute('fill',bEl.style.color);
-        t.setAttribute('font-family',FONT);t.textContent=ln;bg2.appendChild(t);
+        t.setAttribute('font-family',FONT);
+        if(bEl.dataset.href)t.setAttribute('text-decoration','underline');
+        t.textContent=ln;bulletTarget.appendChild(t);
       });
     });
 
@@ -1893,117 +1506,80 @@ function getExportFilename(){
   return title?title.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase():'sitemap';
 }
 
-function downloadSVG(){
-  if(!currentTree){alert('Generate a sitemap first.');return;}
-  const a=document.createElement('a');
-  a.href='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(buildSVGString());
-  a.download=getExportFilename()+'.svg';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-}
-
-function downloadPNG(){
-  if(!currentTree){alert('Generate a sitemap first.');return;}
-  const map=document.getElementById('map');
-  const mapW=parseInt(map.style.width),mapH=parseInt(map.style.height);
-  const titleVal=document.getElementById('map-title').value.trim();
-  const titleAreaH=titleVal?60:0;
-  const totalW=mapW,totalH=titleAreaH+mapH;
-  const scale=2;
-  const img=new Image();
-  img.onload=()=>{
-    const canvas=document.createElement('canvas');
-    canvas.width=totalW*scale;canvas.height=totalH*scale;
-    const ctx=canvas.getContext('2d');
-    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.scale(scale,scale);ctx.drawImage(img,0,0);
-    const a=document.createElement('a');
-    a.href=canvas.toDataURL('image/png');
-    a.download=getExportFilename()+'.png';
-    document.body.appendChild(a);a.click();document.body.removeChild(a);
-  };
-  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(buildSVGString());
-}
-
-const PUBLISHED_SOURCE_TYPE='application/x-sitemapper-outline';
-
-function publishHTML(){
-  if(!currentTree){alert('Generate a sitemap first.');return;}
+function downloadHTML(){
+  if(!currentTree){alert('Load a sitemap first.');return;}
   const title=document.getElementById('map-title').value.trim()||'Sitemap';
   const safeTitle=title.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-  const outlineRaw=document.getElementById('outline').value;
-  const embeddedSource=outlineRaw.replace(/<\//g,'<\\/');
+
+  // Bake both a with-details and without-details SVG into the export so the
+  // toggle works standalone, with no app JS along for the ride. render()
+  // clears the undo stack as a side effect, so snapshot/restore it around
+  // the two extra renders this requires.
+  const originalShowDetails=SHOW_DETAILS;
+  const savedUndo=undoStack.slice();
+  SHOW_DETAILS=true;render();
+  const svgWithDetails=buildSVGString('boxShadow-with');
+  SHOW_DETAILS=false;render();
+  const svgWithoutDetails=buildSVGString('boxShadow-without');
+  SHOW_DETAILS=originalShowDetails;render();
+  undoStack.length=0;
+  savedUndo.forEach(s=>undoStack.push(s));
+  document.getElementById('undo-btn').disabled=!undoStack.length;
+
   const html='<!DOCTYPE html>\n'
     +'<html lang="en">\n<head>\n<meta charset="UTF-8">\n'
     +'<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
     +'<title>'+safeTitle+'</title>\n'
     +'<style>\n'
     +'  body{margin:0;padding:40px;background:#f0efeb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;display:flex;justify-content:center;}\n'
+    +'  .page{display:flex;flex-direction:column;max-width:100%;}\n'
+    +'  .toolbar{display:flex;justify-content:flex-end;margin-bottom:10px;}\n'
+    +'  .details-toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:#666;cursor:pointer;user-select:none;}\n'
+    +'  .details-toggle input{position:absolute;opacity:0;width:0;height:0;}\n'
+    +'  .switch-track{position:relative;width:32px;height:18px;background:#ddd;border-radius:9px;transition:background 150ms ease;flex-shrink:0;}\n'
+    +'  .switch-thumb{position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);transition:transform 150ms ease;}\n'
+    +'  .details-toggle input:checked + .switch-track{background:#1a1a1a;}\n'
+    +'  .details-toggle input:checked + .switch-track .switch-thumb{transform:translateX(14px);}\n'
     +'  .wrap{background:#fff;padding:24px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.08);overflow:auto;max-width:100%;}\n'
     +'  svg{display:block;max-width:100%;height:auto;}\n'
-    +'</style>\n</head>\n<body>\n<div class="wrap">\n'
-    +buildSVGString()
+    +'</style>\n</head>\n<body>\n'
+    +'<div class="page">\n'
+    +'<div class="toolbar"><label class="details-toggle"><input type="checkbox" id="details-checkbox"'+(originalShowDetails?' checked':'')+'><span class="switch-track"><span class="switch-thumb"></span></span><span>Details</span></label></div>\n'
+    +'<div class="wrap" id="wrap-with-details"'+(originalShowDetails?'':' style="display:none"')+'>\n'
+    +svgWithDetails
     +'\n</div>\n'
-    +'<script type="'+PUBLISHED_SOURCE_TYPE+'" id="sitemapper-source">'+embeddedSource+'<\/script>\n'
+    +'<div class="wrap" id="wrap-without-details"'+(originalShowDetails?' style="display:none"':'')+'>\n'
+    +svgWithoutDetails
+    +'\n</div>\n'
+    +'</div>\n'
+    +'<script>\n'
+    +'document.getElementById("details-checkbox").addEventListener("change",function(){\n'
+    +'  var on=this.checked;\n'
+    +'  document.getElementById("wrap-with-details").style.display=on?"":"none";\n'
+    +'  document.getElementById("wrap-without-details").style.display=on?"none":"";\n'
+    +'});\n'
+    +'<\/script>\n'
     +'</body>\n</html>\n';
   const a=document.createElement('a');
   a.href='data:text/html;charset=utf-8,'+encodeURIComponent(html);
-  a.download=getExportFilename()+'-published.html';
+  a.download=getExportFilename()+'.html';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
-function importPublishedHTML(file){
-  const reader=new FileReader();
-  reader.onload=()=>{
-    const match=reader.result.match(/<script type="application\/x-sitemapper-outline"[^>]*>([\s\S]*?)<\/script>/);
-    if(!match){alert('No Sitemapper outline found in this file — it may not be a file published by Sitemapper.');return;}
-    const restored=match[1].replace(/<\\\//g,'<\/');
-    document.getElementById('outline').value=restored;
-    updateOutlineGutter();
-    generate();
-  };
-  reader.readAsText(file);
+// localStorage throws (rather than just being empty) in some contexts —
+// data: URLs, sandboxed iframes, etc. Remembering the sheet URL is a nice-to-have,
+// so it should degrade quietly rather than break the app.
+function lsGet(key){
+  try{return localStorage.getItem(key);}catch(e){return null;}
 }
-
-function getVersions(){
-  try{return JSON.parse(localStorage.getItem('sitemapper.versions')||'[]');}catch(e){return[];}
-}
-function setVersions(list){
-  localStorage.setItem('sitemapper.versions',JSON.stringify(list));
-}
-
-function getDefaultOutline(){
-  const stored=localStorage.getItem('sitemapper.default');
-  return (stored&&stored.trim())?stored:TVCC;
-}
-
-function loadDefault(){
-  document.getElementById('outline').value=getDefaultOutline();
-  updateOutlineGutter();
-  generate();
-}
-
-function setAsDefault(){
-  const raw=document.getElementById('outline').value.trim();
-  if(!raw)return;
-  try{
-    buildTreeFromOutline(raw);
-  }catch(e){
-    alert('This outline has an error and can\'t be saved as the default yet:\n\n'+e.message);
-    return;
-  }
-  if(!confirm('Overwrite the default with the current outline? "Reset to Default" will load this from now on.'))return;
-  localStorage.setItem('sitemapper.default',raw);
-}
-
-function clearCustomDefault(){
-  if(!localStorage.getItem('sitemapper.default')){alert('No custom default is set — "Reset to Default" already loads the built-in Tri-Valley sitemap.');return;}
-  if(!confirm('Clear your custom default and go back to the built-in Tri-Valley sitemap?'))return;
-  localStorage.removeItem('sitemapper.default');
+function lsSet(key,val){
+  try{localStorage.setItem(key,val);}catch(e){/* storage unavailable */}
 }
 
 async function loadFromSheet(){
   const urlEl=document.getElementById('sheet-url');
   const errEl=document.getElementById('sheet-err');
+  const statusEl=document.getElementById('sheet-sync-status');
   const url=urlEl.value.trim();
   errEl.style.display='none';
   if(!url){errEl.textContent='Paste a JSON URL first.';errEl.style.display='block';return;}
@@ -2012,7 +1588,7 @@ async function loadFromSheet(){
     if(!res.ok)throw new Error(`Request failed: ${res.status} ${res.statusText}`);
     const data=await res.json();
     currentTree=buildTreeFromSheetJSON(data);
-    localStorage.setItem('sitemapper.sheetUrl',url);
+    lsSet('sitemapper.sheetUrl',url);
     const nameEl=document.getElementById('sitemap-name');
     if(!nameEl.value.trim()){
       const name=cellText(currentTree.root.page)||'Sitemap';
@@ -2020,65 +1596,17 @@ async function loadFromSheet(){
       document.getElementById('map-title').value=name;
     }
     render();
+    statusEl.textContent='Last synced '+new Date().toLocaleTimeString();
   }catch(e){
     errEl.textContent=e.message;errEl.style.display='block';
   }
 }
 
-function saveVersion(){
-  const raw=document.getElementById('outline').value.trim();
-  if(!raw)return;
-  const name=prompt('Name this version:',document.getElementById('sitemap-name').value||'Untitled');
-  if(!name)return;
-  const versions=getVersions();
-  versions.push({id:Date.now()+'-'+Math.random().toString(36).slice(2),name,content:raw,savedAt:new Date().toISOString()});
-  setVersions(versions);
-  renderVersionList();
+const savedSheetUrl=lsGet('sitemapper.sheetUrl');
+if(savedSheetUrl){
+  document.getElementById('sheet-url').value=savedSheetUrl;
+  loadFromSheet();
 }
-
-function loadVersion(id){
-  const v=getVersions().find(v=>v.id===id);
-  if(!v)return;
-  document.getElementById('outline').value=v.content;
-  updateOutlineGutter();
-  generate();
-}
-
-function deleteVersion(id){
-  const versions=getVersions();
-  const v=versions.find(v=>v.id===id);
-  if(!v)return;
-  if(!confirm(`Delete version "${v.name}"?`))return;
-  setVersions(versions.filter(x=>x.id!==id));
-  renderVersionList();
-}
-
-function renderVersionList(){
-  const container=document.getElementById('version-list');
-  container.innerHTML='';
-  getVersions().slice().reverse().forEach(v=>{
-    const row=document.createElement('div');
-    row.className='version-row';
-    const btn=document.createElement('button');
-    btn.className='version-name';
-    btn.textContent=v.name;
-    btn.title=new Date(v.savedAt).toLocaleString();
-    btn.onclick=()=>loadVersion(v.id);
-    const del=document.createElement('button');
-    del.className='version-del';
-    del.textContent='✕';
-    del.title='Delete version';
-    del.onclick=e=>{e.stopPropagation();deleteVersion(v.id);};
-    row.appendChild(btn);row.appendChild(del);
-    container.appendChild(row);
-  });
-}
-
-// Auto-load default on start
-loadDefault();
-renderVersionList();
-const savedSheetUrl=localStorage.getItem('sitemapper.sheetUrl');
-if(savedSheetUrl)document.getElementById('sheet-url').value=savedSheetUrl;
 </script>
 </body>
 </html>
