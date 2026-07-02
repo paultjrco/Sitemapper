@@ -835,6 +835,7 @@ function treeExtent(node){
 let currentTree=null;
 let svgEl=null;
 let sheetTabs=[]; // [{sheetName, pages}, ...] from the last successful sheet fetch
+let currentTabName=null; // sheetName of the tab currentTree was built from
 
 function updateConnectors(){
   if(!svgEl||!currentTree||!currentTree.root)return;
@@ -1510,25 +1511,48 @@ function getExportFilename(){
   return title?title.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase():'sitemap';
 }
 
+function escapeHtml(s){
+  return String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+}
+
 function downloadHTML(){
   if(!currentTree){alert('Load a sitemap first.');return;}
   const title=document.getElementById('map-title').value.trim()||'Sitemap';
-  const safeTitle=title.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const safeTitle=escapeHtml(title);
 
-  // Bake both a with-details and without-details SVG into the export so the
-  // toggle works standalone, with no app JS along for the ride. render()
-  // clears the undo stack as a side effect, so snapshot/restore it around
-  // the two extra renders this requires.
+  // Bake every tab, each in both a with-details and without-details variant,
+  // into the export so both the Version and Details switches work standalone,
+  // with no app JS or live fetch along for the ride. render() clears the undo
+  // stack as a side effect, so snapshot/restore state around the extra renders.
   const originalShowDetails=SHOW_DETAILS;
+  const originalTabName=currentTabName;
   const savedUndo=undoStack.slice();
-  SHOW_DETAILS=true;render();
-  const svgWithDetails=buildSVGString('boxShadow-with');
-  SHOW_DETAILS=false;render();
-  const svgWithoutDetails=buildSVGString('boxShadow-without');
-  SHOW_DETAILS=originalShowDetails;render();
+
+  const titleEl=document.getElementById('map-title');
+  const tabNames=sheetTabs.length?sheetTabs.map(t=>t.sheetName):[title];
+  const svgByTab=tabNames.map((name,i)=>{
+    if(sheetTabs.length)currentTree=buildTreeFromPages(sheetTabs[i].pages);
+    titleEl.value=name; // buildSVGString reads this live to bake the heading into each tab's SVG
+    SHOW_DETAILS=true;render();
+    const withSvg=buildSVGString(`boxShadow-${i}-with`);
+    SHOW_DETAILS=false;render();
+    const withoutSvg=buildSVGString(`boxShadow-${i}-without`);
+    return{with:withSvg,without:withoutSvg};
+  });
+
+  SHOW_DETAILS=originalShowDetails;
+  if(sheetTabs.length&&originalTabName)showTab(originalTabName);
+  else render();
   undoStack.length=0;
   savedUndo.forEach(s=>undoStack.push(s));
   document.getElementById('undo-btn').disabled=!undoStack.length;
+
+  const initialIndex=Math.max(0,tabNames.indexOf(originalTabName));
+  const tabOptions=tabNames.map((name,i)=>`<option value="${i}"${i===initialIndex?' selected':''}>${escapeHtml(name)}</option>`).join('');
+  const tabWraps=svgByTab.map((svg,i)=>
+    `<div class="wrap" id="wrap-${i}-with"${i===initialIndex&&originalShowDetails?'':' style="display:none"'}>\n${svg.with}\n</div>\n`
+    +`<div class="wrap" id="wrap-${i}-without"${i===initialIndex&&!originalShowDetails?'':' style="display:none"'}>\n${svg.without}\n</div>\n`
+  ).join('');
 
   const html='<!DOCTYPE html>\n'
     +'<html lang="en">\n<head>\n<meta charset="UTF-8">\n'
@@ -1537,7 +1561,8 @@ function downloadHTML(){
     +'<style>\n'
     +'  body{margin:0;padding:40px;background:#f0efeb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;display:flex;justify-content:center;}\n'
     +'  .page{display:flex;flex-direction:column;max-width:100%;}\n'
-    +'  .toolbar{display:flex;justify-content:flex-end;margin-bottom:10px;}\n'
+    +'  .toolbar{display:flex;align-items:center;justify-content:flex-end;gap:16px;margin-bottom:10px;}\n'
+    +'  .tab-select{font-size:13px;color:#333;padding:5px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;font-family:inherit;}\n'
     +'  .details-toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:#666;cursor:pointer;user-select:none;}\n'
     +'  .details-toggle input{position:absolute;opacity:0;width:0;height:0;}\n'
     +'  .switch-track{position:relative;width:32px;height:18px;background:#ddd;border-radius:9px;transition:background 150ms ease;flex-shrink:0;}\n'
@@ -1548,20 +1573,23 @@ function downloadHTML(){
     +'  svg{display:block;max-width:100%;height:auto;}\n'
     +'</style>\n</head>\n<body>\n'
     +'<div class="page">\n'
-    +'<div class="toolbar"><label class="details-toggle"><input type="checkbox" id="details-checkbox"'+(originalShowDetails?' checked':'')+'><span class="switch-track"><span class="switch-thumb"></span></span><span>Details</span></label></div>\n'
-    +'<div class="wrap" id="wrap-with-details"'+(originalShowDetails?'':' style="display:none"')+'>\n'
-    +svgWithDetails
-    +'\n</div>\n'
-    +'<div class="wrap" id="wrap-without-details"'+(originalShowDetails?' style="display:none"':'')+'>\n'
-    +svgWithoutDetails
-    +'\n</div>\n'
+    +'<div class="toolbar">\n'
+    +(tabNames.length>1?`<select class="tab-select" id="tab-select">${tabOptions}</select>\n`:'')
+    +'<label class="details-toggle"><input type="checkbox" id="details-checkbox"'+(originalShowDetails?' checked':'')+'><span class="switch-track"><span class="switch-thumb"></span></span><span>Details</span></label>\n'
+    +'</div>\n'
+    +tabWraps
     +'</div>\n'
     +'<script>\n'
-    +'document.getElementById("details-checkbox").addEventListener("change",function(){\n'
-    +'  var on=this.checked;\n'
-    +'  document.getElementById("wrap-with-details").style.display=on?"":"none";\n'
-    +'  document.getElementById("wrap-without-details").style.display=on?"none":"";\n'
-    +'});\n'
+    +`var currentTabIndex=${initialIndex};\n`
+    +'var detailsOn='+(originalShowDetails?'true':'false')+';\n'
+    +'function updateVisible(){\n'
+    +'  document.querySelectorAll(".wrap").forEach(function(w){w.style.display="none";});\n'
+    +'  var el=document.getElementById("wrap-"+currentTabIndex+"-"+(detailsOn?"with":"without"));\n'
+    +'  if(el)el.style.display="";\n'
+    +'}\n'
+    +'var tabSelect=document.getElementById("tab-select");\n'
+    +'if(tabSelect)tabSelect.addEventListener("change",function(){currentTabIndex=parseInt(this.value,10);updateVisible();});\n'
+    +'document.getElementById("details-checkbox").addEventListener("change",function(){detailsOn=this.checked;updateVisible();});\n'
     +'<\/script>\n'
     +'</body>\n</html>\n';
   const a=document.createElement('a');
@@ -1623,6 +1651,7 @@ function showTab(sheetName){
   const tab=sheetTabs.find(t=>t.sheetName===sheetName);
   if(!tab)return;
   currentTree=buildTreeFromPages(tab.pages);
+  currentTabName=sheetName;
   lsSet('sitemapper.selectedTab',sheetName);
   document.getElementById('sitemap-name').value=sheetName;
   document.getElementById('map-title').value=sheetName;
