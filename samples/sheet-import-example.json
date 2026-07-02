@@ -1,0 +1,98 @@
+{
+  "sheetName": "Acme Redesign — Sitemap",
+  "generatedAt": "2026-07-01T14:32:00Z",
+  "pages": [
+    {
+      "section": "main",
+      "level": 1,
+      "name": "Homepage",
+      "parent": null,
+      "notes": [
+        "Hero with audience cards",
+        "Featured content",
+        { "text": "Quick links panel", "url": "https://example.com/quicklinks" }
+      ]
+    },
+    {
+      "section": "main",
+      "level": 2,
+      "name": { "text": "Job Seekers", "url": "https://example.com/careers" },
+      "parent": "Homepage",
+      "notes": [
+        "Career Services",
+        "Workshops",
+        "Job Board"
+      ]
+    },
+    {
+      "section": "main",
+      "level": 2,
+      "name": "About",
+      "parent": "Homepage",
+      "notes": [
+        "About Us",
+        "Our Team",
+        "Contact"
+      ]
+    },
+    {
+      "section": "main",
+      "level": 3,
+      "name": "Career Services",
+      "parent": "Job Seekers",
+      "notes": [
+        "One-on-one counseling",
+        "Orientation required"
+      ]
+    },
+    {
+      "section": "main",
+      "level": 3,
+      "name": "Team",
+      "parent": "About",
+      "notes": [
+        "Leadership bios",
+        "Org chart"
+      ]
+    },
+    {
+      "section": "main",
+      "level": 3,
+      "name": "Mission",
+      "parent": "About",
+      "notes": [
+        { "text": "Annual report PDF", "url": "https://example.com/report.pdf" }
+      ]
+    },
+    {
+      "section": "header",
+      "level": 1,
+      "name": "Search",
+      "parent": null,
+      "notes": []
+    },
+    {
+      "section": "header",
+      "level": 1,
+      "name": { "text": "Login", "url": "https://example.com/login" },
+      "parent": null,
+      "notes": []
+    },
+    {
+      "section": "footer",
+      "level": 1,
+      "name": "Privacy Policy",
+      "parent": null,
+      "notes": [
+        "Updated quarterly"
+      ]
+    },
+    {
+      "section": "footer",
+      "level": 1,
+      "name": { "text": "Newsletter Signup", "url": "https://example.com/newsletter" },
+      "parent": null,
+      "notes": []
+    }
+  ]
+}

@@ -202,7 +202,7 @@ textarea:focus { outline: none; border-color: #999; }
 }
 .version-row .version-del:hover { color: #c0392b; }
 
-#err {
+#err, #sheet-err {
   color: #c0392b;
   font-size: 12px;
   background: #fdecea;
@@ -347,6 +347,10 @@ textarea:focus { outline: none; border-color: #999; }
   content: "•";
   position: absolute;
   left: 0;
+}
+.sm-title[data-href], .sm-bullet[data-href] {
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .zone-label {
@@ -544,6 +548,17 @@ footer {
         <button class="btn btn-primary" onclick="generate()" style="width:100%" title="Generate (Cmd/Ctrl+Enter)">Generate</button>
 
         <div id="err"></div>
+
+        <div>
+          <h2 style="margin-bottom:6px">Import from Google Sheet</h2>
+          <div class="hint">
+            Paste the JSON URL published by your Sheet's Apps Script (or any JSON file matching that shape). Loading a sheet replaces the current map and bypasses the outline text above — edit the sheet and load again to update.
+          </div>
+          <input type="text" id="sheet-url" placeholder="https://script.google.com/macros/…/exec"
+            style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;font-family:inherit;background:#fafafa;margin-bottom:6px;">
+          <button class="btn" onclick="loadFromSheet()" style="width:100%">Load from Sheet</button>
+          <div id="sheet-err"></div>
+        </div>
 
         <div>
           <h2 style="margin-bottom:6px">Versions</h2>
@@ -998,6 +1013,58 @@ function buildTreeFromOutline(raw){
   };
 }
 
+// A "cell" from sheet-import JSON is either a plain string or {text,url}.
+function cellText(v){return typeof v==='string'?v:(v&&v.text)||'';}
+function cellUrl(v){return (v&&typeof v==='object')?v.url:undefined;}
+
+function linkify(el,url){
+  if(!url)return;
+  el.dataset.href=url;
+  el.addEventListener('click',e=>{
+    e.stopPropagation();
+    window.open(url,'_blank','noopener,noreferrer');
+  });
+}
+
+function buildMainFromSheet(items){
+  const byKey=new Map();
+  items.forEach(p=>byKey.set(cellText(p.name),{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0}));
+  let root=null;
+  items.forEach(p=>{
+    const key=cellText(p.name);
+    const node=byKey.get(key);
+    if(!p.parent){
+      if(root) throw new Error(`Main can only have one top-level page (empty Parent) — found a second one: "${key}".`);
+      root=node;
+    } else {
+      const parent=byKey.get(p.parent);
+      if(!parent) throw new Error(`"${key}" lists parent "${p.parent}", but no page with that name was found.`);
+      parent.children.push(node);
+    }
+  });
+  if(!root) throw new Error('Main needs at least one page with an empty Parent (the homepage).');
+  root.vmode=false;
+  return root;
+}
+
+function buildFlatZoneFromSheet(items){
+  return items.map(p=>({page:p.name,bullets:p.notes||[]}));
+}
+
+function buildTreeFromSheetJSON(data){
+  const pages=Array.isArray(data.pages)?data.pages:[];
+  const bySection={main:[],header:[],footer:[]};
+  pages.forEach(p=>{
+    const section=(p.section||'main').toLowerCase();
+    (bySection[section]||bySection.main).push(p);
+  });
+  return{
+    root:buildMainFromSheet(bySection.main),
+    header:buildFlatZoneFromSheet(bySection.header),
+    footer:buildFlatZoneFromSheet(bySection.footer)
+  };
+}
+
 const ruler=document.createElement('div');
 ruler.style.cssText='position:fixed;visibility:hidden;pointer-events:none;box-sizing:border-box;width:125px;line-height:1.55;word-break:break-word;padding:0 4px 0 10px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif';
 document.body.appendChild(ruler);
@@ -1027,7 +1094,7 @@ function measureBulletH(bullets,mode){
   bullets.forEach(b=>{
     const d=document.createElement('div');
     d.style.paddingLeft='8px';
-    d.textContent=b;
+    d.textContent=cellText(b);
     ruler.appendChild(d);
   });
   return ruler.offsetHeight;
@@ -1493,7 +1560,8 @@ function renderBox(node,container){
   const title=document.createElement('div');
   title.className='sm-title'+(node.depth===0?' root':'');
   title.style.color=c.title;
-  title.textContent=node.page;
+  title.textContent=cellText(node.page);
+  linkify(title,cellUrl(node.page));
   card.appendChild(title);
 
   if(node.bullets.length){
@@ -1501,7 +1569,9 @@ function renderBox(node,container){
     list.className='sm-bullet-list';
     node.bullets.forEach(b=>{
       const d=document.createElement('div');
-      d.className='sm-bullet';d.style.color=c.bullet;d.textContent=b;list.appendChild(d);
+      d.className='sm-bullet';d.style.color=c.bullet;d.textContent=cellText(b);
+      linkify(d,cellUrl(b));
+      list.appendChild(d);
     });
     el.appendChild(list);
   }
@@ -1535,13 +1605,17 @@ function renderZone(items,container,label,yStart,totalW,gap){
     card.style.cssText=`background:${c.fill};border-color:${c.stroke}`;
     el.appendChild(card);
     const title=document.createElement('div');
-    title.className='sm-title';title.style.color=c.title;title.textContent=item.page;card.appendChild(title);
+    title.className='sm-title';title.style.color=c.title;title.textContent=cellText(item.page);
+    linkify(title,cellUrl(item.page));
+    card.appendChild(title);
     if(item.bullets.length){
       const list=document.createElement('div');
       list.className='sm-bullet-list';
       item.bullets.forEach(b=>{
         const d=document.createElement('div');
-        d.className='sm-bullet';d.style.color=c.bullet;d.textContent=b;list.appendChild(d);
+        d.className='sm-bullet';d.style.color=c.bullet;d.textContent=cellText(b);
+        linkify(d,cellUrl(b));
+        list.appendChild(d);
       });
       el.appendChild(list);
     }
@@ -1645,7 +1719,7 @@ function generate(){
     currentTree=buildTreeFromOutline(raw);
     // Auto-populate name from root page if blank
     if(!document.getElementById('sitemap-name').value.trim()){
-      const name=currentTree.root.page||'Sitemap';
+      const name=cellText(currentTree.root.page)||'Sitemap';
       document.getElementById('sitemap-name').value=name;
       document.getElementById('map-title').value=name;
     }
@@ -1927,6 +2001,30 @@ function clearCustomDefault(){
   localStorage.removeItem('sitemapper.default');
 }
 
+async function loadFromSheet(){
+  const urlEl=document.getElementById('sheet-url');
+  const errEl=document.getElementById('sheet-err');
+  const url=urlEl.value.trim();
+  errEl.style.display='none';
+  if(!url){errEl.textContent='Paste a JSON URL first.';errEl.style.display='block';return;}
+  try{
+    const res=await fetch(url);
+    if(!res.ok)throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+    const data=await res.json();
+    currentTree=buildTreeFromSheetJSON(data);
+    localStorage.setItem('sitemapper.sheetUrl',url);
+    const nameEl=document.getElementById('sitemap-name');
+    if(!nameEl.value.trim()){
+      const name=cellText(currentTree.root.page)||'Sitemap';
+      nameEl.value=name;
+      document.getElementById('map-title').value=name;
+    }
+    render();
+  }catch(e){
+    errEl.textContent=e.message;errEl.style.display='block';
+  }
+}
+
 function saveVersion(){
   const raw=document.getElementById('outline').value.trim();
   if(!raw)return;
@@ -1979,6 +2077,8 @@ function renderVersionList(){
 // Auto-load default on start
 loadDefault();
 renderVersionList();
+const savedSheetUrl=localStorage.getItem('sitemapper.sheetUrl');
+if(savedSheetUrl)document.getElementById('sheet-url').value=savedSheetUrl;
 </script>
 </body>
 </html>
