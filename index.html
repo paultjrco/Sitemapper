@@ -1843,10 +1843,20 @@ if(REVIEW_MODE){
     document.getElementById('map').innerHTML='<div id="review-error">No sitemap specified in this link.</div>';
   }
 }else{
-  const savedSheetUrl=lsGet('sitemapper.sheetUrl');
-  if(savedSheetUrl){
-    document.getElementById('sheet-url').value=savedSheetUrl;
-    loadFromSheet();
+  // Editor: a ?sheet= (and optional ?tab=) in the link wins, so you can share a
+  // direct editor link preloaded with a specific sheet. loadFromSheet persists
+  // the URL, so it also becomes this browser's remembered sheet. With no
+  // ?sheet=, fall back to the last sheet this browser used.
+  const sheet=URL_PARAMS.get('sheet');
+  if(sheet){
+    document.getElementById('sheet-url').value=sheet;
+    loadFromSheet(URL_PARAMS.get('tab')||undefined);
+  }else{
+    const savedSheetUrl=lsGet('sitemapper.sheetUrl');
+    if(savedSheetUrl){
+      document.getElementById('sheet-url').value=savedSheetUrl;
+      loadFromSheet();
+    }
   }
 }
 </script>
