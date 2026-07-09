@@ -834,10 +834,11 @@ function bulletMode(node){
   return 'below';
 }
 
-// Width always reserves space as if notes were showing — only measureBH (height)
-// respects the Details toggle — so hiding notes never reflows anything horizontally.
+// Width follows the Details toggle: with notes hidden a box collapses to its
+// bare title (BOX_W), so the whole map reflows tighter and the gaps between
+// subtrees stay consistent — showing notes stretches everything back out.
 function nodeW(node){
-  if(!node.bullets?.length)return BOX_W;
+  if(!visibleBullets(node).length)return BOX_W;
   return bulletMode(node)==='side'?BOX_W+BULLET_SIDE_GAP+BULLET_SIDE_W:Math.max(BOX_W,BULLET_LIST_W);
 }
 
@@ -1242,9 +1243,9 @@ function renderBox(node,container){
   const c=col(node.depth);
   const mode=bulletMode(node);
   const el=document.createElement('div');
-  const hasBullets=(node.bullets||[]).length>0;
   const bullets=visibleBullets(node);
-  el.className='sm-box'+(hasBullets?' has-bullets':'')+(mode==='side'?' bullets-side':mode==='indent'?' has-children-v':'')+(node.grouping?' is-grouping':'');
+  const hasBullets=bullets.length>0; // gate width classes on shown notes so the box footprint matches the reflowed layout
+  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.grouping?' is-grouping':'');
   el.dataset.depth=node.depth;
   el.style.cssText=`left:${node.x}px;top:${node.y}px`;
 
@@ -1282,9 +1283,9 @@ function renderBox(node,container){
 function renderZoneBox(node,container){
   const mode=bulletMode(node);
   const el=document.createElement('div');
-  const hasBullets=(node.bullets||[]).length>0;
   const bullets=visibleBullets(node);
-  el.className='sm-box'+(hasBullets?' has-bullets':'')+(mode==='side'?' bullets-side':mode==='indent'?' has-children-v':'')+(node.grouping?' is-grouping':'');
+  const hasBullets=bullets.length>0; // gate width classes on shown notes so the box footprint matches the reflowed layout
+  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.grouping?' is-grouping':'');
   el.dataset.depth='zone';
   el.style.cssText=`left:${node.x}px;top:${node.y}px`;
 
