@@ -475,14 +475,9 @@ body.review-mode .sm-box { cursor: default; }
 
 <header>
   <h1>Sitemapper</h1>
-  <button class="btn btn-success" onclick="downloadHTML()" title="Download a standalone, read-only HTML snapshot to email or archive">↓ Download HTML</button>
-  <button class="btn" onclick="copyReviewLink()" title="Copy a live, client-facing review link that always reflects the latest Sheet">🔗 Copy Review Link</button>
-  <div class="toolbar-sep"></div>
-  <button class="btn" onclick="tidyUp()">Tidy Up</button>
-  <div class="toolbar-sep"></div>
-  <button class="btn" id="undo-btn" onclick="undoMove()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
-  <div class="toolbar-sep"></div>
-  <span style="font-size:12px;color:#888">Drag boxes to reposition</span>
+  <span style="font-size:13px;color:#888;margin-left:4px">Copy:</span>
+  <button class="btn" onclick="copyLink('editor')" title="Copy a direct link that opens this editor with the current Sheet preloaded">Editor URL</button>
+  <button class="btn" onclick="copyLink('review')" title="Copy a live, client-facing review link that always reflects the latest Sheet">Review Link</button>
 </header>
 
 <div id="align-bar">
@@ -511,24 +506,17 @@ body.review-mode .sm-box { cursor: default; }
       <div id="tab-data" class="tab-panel active">
 
         <div>
-          <h2 style="margin-bottom:6px">Sitemap Name</h2>
-          <input type="text" id="sitemap-name" placeholder="My Sitemap"
-            style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;font-family:inherit;background:#fafafa;"
-            oninput="document.getElementById('map-title').value=this.value">
-        </div>
-
-        <div>
           <h2 style="margin-bottom:6px">Google Sheet</h2>
           <div class="hint">
-            Paste the JSON URL published by your Sheet's Apps Script. Edit the sheet, then click Reload to pull the latest content.
+            Paste the JSON URL published by your Sheet's Apps Script. Edit the sheet, then click Sync to pull the latest content.
           </div>
           <input type="text" id="sheet-url" placeholder="https://script.google.com/macros/…/exec"
             style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;font-family:inherit;background:#fafafa;margin-bottom:6px;">
-          <button class="btn btn-primary" onclick="loadFromSheet()" style="width:100%">Reload</button>
+          <button class="btn btn-primary" onclick="loadFromSheet()" style="width:100%">Sync</button>
           <div id="sheet-sync-status">Not synced yet</div>
           <div id="sheet-err"></div>
           <div id="sheet-tab-wrap" style="display:none;margin-top:10px;">
-            <h2 style="margin-bottom:6px">Version</h2>
+            <h2 style="margin-bottom:6px">Tab</h2>
             <select id="sheet-tab-select" style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;font-family:inherit;background:#fafafa;" onchange="onSelectTab(this.value)"></select>
           </div>
         </div>
@@ -647,9 +635,8 @@ body.review-mode .sm-box { cursor: default; }
 
   <div id="canvas-area">
     <div id="map-title-wrap">
-      <input id="map-title" type="text" placeholder="Sitemap title…" spellcheck="false"
-        oninput="document.getElementById('sitemap-name').value=this.value">
-      <select id="review-tab-select" title="Version" onchange="showTab(this.value)"></select>
+      <input id="map-title" type="text" placeholder="Sitemap title…" spellcheck="false">
+      <select id="review-tab-select" title="Tab" onchange="showTab(this.value)"></select>
       <label id="details-toggle">
         <input type="checkbox" id="details-checkbox" checked onchange="onToggleDetails(this.checked)">
         <span class="switch-track"><span class="switch-thumb"></span></span>
@@ -661,7 +648,7 @@ body.review-mode .sm-box { cursor: default; }
 </main>
 
 <footer>
-  Sitemapper &nbsp;·&nbsp; Drag to reposition &nbsp;·&nbsp; Download HTML to share
+  Sitemapper &nbsp;·&nbsp; Drag to reposition &nbsp;·&nbsp; Copy a link to share
 </footer>
 
 <script>
@@ -1082,9 +1069,13 @@ function snapshotPositions(){
   return snap;
 }
 
+// The Undo toolbar button was removed, but keyboard undo (Ctrl+Z) still works.
+// Guard against the button being absent so these calls never throw.
+function setUndoBtnDisabled(v){const b=document.getElementById('undo-btn');if(b)b.disabled=v;}
+
 function pushUndo(snap){
   undoStack.push(snap);
-  document.getElementById('undo-btn').disabled=false;
+  setUndoBtnDisabled(false);
 }
 
 function tidyUp(){
@@ -1101,7 +1092,7 @@ function undoMove(){
     if(n._el){n._el.style.left=n.x+'px';n._el.style.top=n.y+'px';}
   });
   updateConnectors();
-  document.getElementById('undo-btn').disabled=!undoStack.length;
+  setUndoBtnDisabled(!undoStack.length);
 }
 
 document.addEventListener('keydown',e=>{
@@ -1373,7 +1364,7 @@ function render(){
   clearSelection();
   allNodes=[];
   undoStack.length=0;
-  document.getElementById('undo-btn').disabled=true;
+  setUndoBtnDisabled(true);
   const container=document.getElementById('map');
   container.innerHTML='';
   const{root,header,footer}=currentTree;
@@ -1678,7 +1669,7 @@ function downloadHTML(){
   else render();
   undoStack.length=0;
   savedUndo.forEach(s=>undoStack.push(s));
-  document.getElementById('undo-btn').disabled=!undoStack.length;
+  setUndoBtnDisabled(!undoStack.length);
 
   const initialIndex=Math.max(0,tabNames.indexOf(originalTabName));
   const tabOptions=tabNames.map((name,i)=>`<option value="${i}"${i===initialIndex?' selected':''}>${escapeHtml(name)}</option>`).join('');
@@ -1802,27 +1793,28 @@ function showTab(sheetName){
   currentTree=buildTreeFromPages(tab.pages);
   currentTabName=sheetName;
   if(!REVIEW_MODE)lsSet('sitemapper.selectedTab',sheetName); // don't let a client review link bleed into the editor's remembered tab
-  document.getElementById('sitemap-name').value=sheetName;
   document.getElementById('map-title').value=sheetName;
   document.getElementById('sheet-tab-select').value=sheetName;
   document.getElementById('review-tab-select').value=sheetName;
   render();
 }
 
-// Build the client-facing review URL: review.html (sitting alongside this
-// page) + the current Sheet URL and version, so the link always reflects the
-// latest Sheet content.
-function copyReviewLink(){
+// Build and copy a shareable link for the current Sheet + tab. kind='editor'
+// → index.html?edit=1&sheet=… (opens this editor preloaded); kind='review'
+// → review.html?sheet=… (read-only client view). Both sit alongside this page.
+function copyLink(kind){
   const sheet=document.getElementById('sheet-url').value.trim();
-  if(!sheet){alert('Load a Google Sheet first, then copy the review link.');return;}
-  const path=location.pathname.replace(/[^/]*$/,'review.html'); // swap index.html (or empty) for review.html
-  let url=location.origin+path+'?sheet='+encodeURIComponent(sheet);
+  if(!sheet){alert('Load a Google Sheet first, then copy a link.');return;}
+  const file=kind==='editor'?'index.html':'review.html';
+  const path=location.pathname.replace(/[^/]*$/,file); // swap current filename (or empty) for the target
+  let url=location.origin+path+'?'+(kind==='editor'?'edit=1&':'')+'sheet='+encodeURIComponent(sheet);
   if(currentTabName)url+='&tab='+encodeURIComponent(currentTabName);
-  const done=()=>alert('Review link copied to clipboard:\n\n'+url);
+  const label=kind==='editor'?'Editor URL':'Review link';
+  const done=()=>alert(label+' copied to clipboard:\n\n'+url);
   if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(url).then(done,()=>prompt('Copy this review link:',url));
+    navigator.clipboard.writeText(url).then(done,()=>prompt('Copy this link:',url));
   }else{
-    prompt('Copy this review link:',url);
+    prompt('Copy this link:',url);
   }
 }
 
