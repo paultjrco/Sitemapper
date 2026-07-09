@@ -1837,6 +1837,9 @@ if(REVIEW_MODE){
     document.getElementById('sheet-url').value=sheet;
     loadFromSheet(URL_PARAMS.get('tab')||undefined);
   }else{
+    // Bare page (no ?sheet=): drop the title/Details bar entirely — there's
+    // nothing to title or toggle. Keep it minimal and obscure.
+    document.getElementById('map-title-wrap').style.display='none';
     document.getElementById('map').innerHTML='<div id="review-error">No sitemap specified in this link.</div>';
   }
 }else{
