@@ -1297,17 +1297,26 @@ function makeDraggable(el,node){
 // Editor-only: reveal a copy icon on each page that copies an LLM prompt built
 // from the page's name + bullets. The template is user-editable ({{name}} and
 // {{bullets}} tokens) and remembered in localStorage.
-const DEFAULT_PROMPT_TEMPLATE=`Generate production-ready content for this page using the approved Information Architecture (IA) and the uploaded legacy content document. That document is the authoritative source for page content. Before writing anything new, identify all content in the legacy content document that belongs on this page and reuse it as closely as possible, preserving wording, lists, instructions, links, resource names, and other content wherever they fit the new IA. Treat the IA as the page outline, using each content bullet beneath the page as an H2 section. Reorganize legacy content to fit those sections, rewriting only to eliminate duplication, improve clarity, modernize formatting, or adapt it to the new structure. If the IA introduces a section that has no corresponding legacy content, write concise, consistent copy that matches the rest of the site. Likewise, if important contextual information is missing from the legacy content (such as explaining the Workforce Innovation and Opportunity Act (WIOA) when appropriate), add only the minimum new content needed to make the page complete. Favor preserving legacy content over creating new marketing copy.
+const DEFAULT_PROMPT_TEMPLATE=`Generate production-ready content for this page using the approved Information Architecture (IA) and the uploaded legacy content document. The legacy content document is the authoritative source for page content.
 
-Format each page with a PAGE: marker, followed by the page title, a concise hero heading (4–7 words), and a brief introductory paragraph. Then present the IA-driven H2 sections with their content, followed by a horizontal rule, a short teaser leading to the next page in the IA (see the uploaded IA outline), and a single bold Markdown link to that page as the call to action. Format every link as a Markdown link written as [link text](url); never output raw HTML, <a> tags, or code fences/backticks, so links paste into Google Docs as clickable text. Use Markdown links throughout the content, reserving the bold CTA link for the final next-page call to action only.
+The Legacy Page URL below is the primary source for this page. First, locate that page in the legacy content document and reuse its content as completely as possible before using material from any other legacy pages. Preserve existing wording, paragraphs, lists, instructions, links, resource names, workshop titles, and other content wherever they fit naturally within the new IA. Only pull supporting content from other legacy pages when needed to satisfy IA sections that are not covered by the primary legacy page. Rewrite only to eliminate duplication, improve clarity, modernize formatting, or adapt content to the new structure. Favor preserving legacy content over creating new marketing copy.
 
-Spell out the full name of any acronym on first use (with brief context if helpful), then use the acronym alone thereafter. Assume each page stands on its own, so don't rely on information from other pages. Use relative URLs for internal links, preserve relevant legacy external links where appropriate, and produce migration-ready Modern Campus content only—no production notes, implementation comments, or repeated sitewide CTA sections.
+Treat the IA as the page outline, using each content bullet beneath the page as an H2 section. Reorganize legacy content into those sections without unnecessarily rewriting it. If the IA introduces a section that has no corresponding legacy content anywhere in the document, write concise, consistent copy that matches the rest of the site. Likewise, if important contextual information is missing from the legacy content (such as explaining the Workforce Innovation and Opportunity Act (WIOA) when appropriate), add only the minimum new content needed to make the page complete.
 
---- PAGE INFORMATION ARCHITECTURE ---
-Page title: {{name}}
-Legacy page URL (find this page's existing content under this URL in the uploaded legacy content document): {{url}}
+Format each page with a PAGE: marker, followed by the page title, a concise hero heading (4–7 words, H2 heading style), and a brief introductory paragraph. Then present the IA-driven H2 sections with their content, followed by a horizontal rule, a short teaser leading to the next page in the IA (see the uploaded IA outline), and a single bold Markdown link to that page as the call to action.
+
+Format every link as a Markdown link written as [link text](url); never output raw HTML, <a> tags, raw URLs, or code fences/backticks, so links paste into Google Docs as clickable text. Use Markdown links throughout the content, reserving the bold CTA link for the final next-page call to action only. Use relative URLs for internal links and preserve relevant legacy external links where appropriate.
+
+Spell out the full name of any acronym on first use (with brief context if helpful), then use the acronym alone thereafter. Assume each page stands on its own, so don't rely on information from other pages. Produce migration-ready Modern Campus content only—no production notes, implementation comments, or repeated sitewide CTA sections.
+
+PAGE INFORMATION ARCHITECTURE
+
+Page title: {{name}} (H1)
+
+Legacy Page URL (locate this page first and treat it as the primary source in the uploaded legacy content document): {{url}}
 
 Content bullets (use each as an H2 section):
+
 {{bullets}}`;
 
 let PROMPT_MODE=false;
