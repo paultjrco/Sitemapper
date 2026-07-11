@@ -469,6 +469,37 @@ body.review-mode .sm-box { cursor: default; }
   padding: 40px 0;
 }
 #review-error { color: #c0392b; }
+
+/* ── Prompt mode (editor only) ───────────────────────────────
+   A toggle reveals a copy icon on every page; clicking it copies an LLM
+   prompt filled with that page's name + bullets. */
+#prompt-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; cursor: pointer; user-select: none; white-space: nowrap; flex-shrink: 0; }
+#prompt-toggle input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+#prompt-toggle .switch-track { position: relative; width: 32px; height: 18px; background: #ddd; border-radius: 9px; transition: background 150ms ease; flex-shrink: 0; }
+#prompt-toggle .switch-thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition: transform 150ms ease; }
+#prompt-toggle input:checked + .switch-track { background: #2563eb; }
+#prompt-toggle input:checked + .switch-track .switch-thumb { transform: translateX(14px); }
+body.review-mode #prompt-toggle { display: none; }
+
+.sm-prompt-btn {
+  position: absolute; top: -9px; right: -9px;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid #cfcfcf; background: #fff; color: #444;
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; padding: 0; z-index: 600;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.18);
+}
+body.prompt-mode .sm-prompt-btn { display: flex; }
+.sm-prompt-btn:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+.sm-prompt-btn svg { width: 12px; height: 12px; }
+
+#toast {
+  position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+  background: #1a1a1a; color: #fff; padding: 9px 16px; border-radius: 8px;
+  font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+  opacity: 0; pointer-events: none; transition: opacity 160ms ease; z-index: 2000;
+}
+#toast.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -519,6 +550,18 @@ body.review-mode .sm-box { cursor: default; }
             <h2 style="margin-bottom:6px">Tab</h2>
             <select id="sheet-tab-select" style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;font-family:inherit;background:#fafafa;" onchange="onSelectTab(this.value)"></select>
           </div>
+        </div>
+
+        <div id="prompt-template-wrap" style="display:none;">
+          <h2 style="margin-bottom:6px">Prompt Template</h2>
+          <div class="hint">
+            In Prompt mode, click the icon on any page to copy this prompt with that page's info filled in.
+            Tokens: <code>{{name}}</code>, <code>{{bullets}}</code>.
+          </div>
+          <textarea id="prompt-template" rows="12" spellcheck="false"
+            oninput="lsSet('sitemapper.promptTemplate',this.value)"
+            style="width:100%;padding:8px;font-size:11px;line-height:1.5;border:1px solid #ddd;border-radius:6px;font-family:inherit;background:#fafafa;resize:vertical;margin-top:6px;"></textarea>
+          <button class="btn" onclick="resetPromptTemplate()" style="margin-top:6px;font-size:11px;padding:4px 10px;">Reset to default</button>
         </div>
 
       </div><!-- #tab-data -->
@@ -637,6 +680,11 @@ body.review-mode .sm-box { cursor: default; }
     <div id="map-title-wrap">
       <input id="map-title" type="text" placeholder="Sitemap title…" spellcheck="false">
       <select id="review-tab-select" title="Tab" onchange="showTab(this.value)"></select>
+      <label id="prompt-toggle" title="Prompt mode: click the icon on any page to copy an LLM prompt with its name and bullets">
+        <input type="checkbox" id="prompt-checkbox" onchange="onPromptMode(this.checked)">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+        <span class="switch-label">Prompt mode</span>
+      </label>
       <label id="details-toggle">
         <input type="checkbox" id="details-checkbox" checked onchange="onToggleDetails(this.checked)">
         <span class="switch-track"><span class="switch-thumb"></span></span>
@@ -1239,6 +1287,78 @@ function makeDraggable(el,node){
   });
 }
 
+// ── Prompt mode ────────────────────────────────────────────
+// Editor-only: reveal a copy icon on each page that copies an LLM prompt built
+// from the page's name + bullets. The template is user-editable ({{name}} and
+// {{bullets}} tokens) and remembered in localStorage.
+const DEFAULT_PROMPT_TEMPLATE=`Generate production-ready content for this page using the approved information architecture (IA) and legacy website content. Treat the IA as the page outline, using each content bullet beneath the page as an H2 section. Reuse legacy content verbatim wherever it fits naturally, rewriting only to eliminate duplication, improve clarity, or adapt it to the new structure. If the IA introduces a section without corresponding legacy content, write concise, consistent copy that matches the rest of the site. Format the page with a PAGE: marker, followed by the page title, a concise hero heading (4–7 words), and a brief introductory paragraph. Then present the IA-driven H2 sections with their content, followed by a horizontal rule, a short teaser leading to the next page in the IA, and a single button linking to that page. Use standard text links throughout the content, reserving buttons only for the final next-page CTA. Spell out the full name of any acronym on first use (with brief context if helpful), then use the acronym thereafter. Assume each page stands alone, so don't rely on information from other pages. Use relative internal links, preserve relevant legacy hyperlinks where appropriate, and produce migration-ready Modern Campus content only—no production notes, implementation comments, or repeated sitewide CTA sections.
+
+--- PAGE INFORMATION ARCHITECTURE ---
+Page title: {{name}}
+
+Content bullets (use each as an H2 section):
+{{bullets}}`;
+
+let PROMPT_MODE=false;
+
+function onPromptMode(checked){
+  PROMPT_MODE=checked;
+  document.body.classList.toggle('prompt-mode',checked);
+  const wrap=document.getElementById('prompt-template-wrap');
+  if(wrap)wrap.style.display=checked?'':'none';
+}
+
+function resetPromptTemplate(){
+  const ta=document.getElementById('prompt-template');
+  ta.value=DEFAULT_PROMPT_TEMPLATE;
+  lsSet('sitemapper.promptTemplate',DEFAULT_PROMPT_TEMPLATE);
+}
+
+// Fill the template's tokens with this page's name and bullet list. Bullets
+// keep their link (if any) so the LLM can preserve legacy hyperlinks.
+function buildPagePrompt(node){
+  const name=cellText(node.page);
+  const bullets=(node.bullets||[]).map(b=>{
+    const t=cellText(b),u=cellUrl(b);
+    return '- '+t+(u?' (link: '+u+')':'');
+  }).join('\n')||'- (no content bullets)';
+  const ta=document.getElementById('prompt-template');
+  const tpl=(ta&&ta.value)||DEFAULT_PROMPT_TEMPLATE;
+  return tpl.split('{{name}}').join(name).split('{{bullets}}').join(bullets);
+}
+
+function copyPagePrompt(node){
+  const text=buildPagePrompt(node);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>showToast('Prompt copied to clipboard'),()=>prompt('Copy this prompt:',text));
+  }else{
+    prompt('Copy this prompt:',text);
+  }
+}
+
+let _toastTimer=null;
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t);}
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>t.classList.remove('show'),1600);
+}
+
+// Copy icon appended to each page's card; CSS keeps it hidden until Prompt mode.
+// stopPropagation so clicking it never starts a drag or changes selection.
+function addPromptButton(card,node){
+  if(REVIEW_MODE)return;
+  const btn=document.createElement('button');
+  btn.className='sm-prompt-btn';
+  btn.title='Copy an LLM prompt for this page';
+  btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  btn.addEventListener('mousedown',e=>e.stopPropagation());
+  btn.addEventListener('click',e=>{e.stopPropagation();copyPagePrompt(node);});
+  card.appendChild(btn);
+}
+
 function renderBox(node,container){
   const c=col(node.depth);
   const mode=bulletMode(node);
@@ -1260,6 +1380,7 @@ function renderBox(node,container){
   title.textContent=cellText(node.page);
   linkify(title,cellUrl(node.page));
   card.appendChild(title);
+  addPromptButton(card,node);
 
   if(bullets.length){
     const list=document.createElement('div');
@@ -1300,6 +1421,7 @@ function renderZoneBox(node,container){
   title.textContent=cellText(node.page);
   linkify(title,cellUrl(node.page));
   card.appendChild(title);
+  addPromptButton(card,node);
 
   if(bullets.length){
     const list=document.createElement('div');
@@ -1818,6 +1940,12 @@ function copyLink(kind){
     prompt('Copy this link:',url);
   }
 }
+
+// Seed the editable prompt template (remembered per browser; harmless in review).
+(function(){
+  const ta=document.getElementById('prompt-template');
+  if(ta)ta.value=lsGet('sitemapper.promptTemplate')||DEFAULT_PROMPT_TEMPLATE;
+})();
 
 if(REVIEW_MODE){
   document.body.classList.add('review-mode');
