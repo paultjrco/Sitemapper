@@ -553,7 +553,13 @@ body.prompt-mode .sm-prompt-btn { display: flex; }
         </div>
 
         <div id="prompt-template-wrap" style="display:none;">
-          <h2 style="margin-bottom:6px">Prompt Template</h2>
+          <h2 style="margin-bottom:6px">IA Outline</h2>
+          <div class="hint">
+            Copies the whole sitemap as structured text (page hierarchy + sections). Upload this to your LLM instead of a screenshot so it reads page relationships perfectly.
+          </div>
+          <button class="btn btn-primary" onclick="copyIAOutline()" style="width:100%;margin-top:6px;">Copy IA Outline</button>
+
+          <h2 style="margin:16px 0 6px">Prompt Template</h2>
           <div class="hint">
             In Prompt mode, click the icon on any page to copy this prompt with that page's info filled in.
             Tokens: <code>{{name}}</code>, <code>{{url}}</code> (legacy page URL), <code>{{bullets}}</code>.
@@ -1291,15 +1297,15 @@ function makeDraggable(el,node){
 // Editor-only: reveal a copy icon on each page that copies an LLM prompt built
 // from the page's name + bullets. The template is user-editable ({{name}} and
 // {{bullets}} tokens) and remembered in localStorage.
-const DEFAULT_PROMPT_TEMPLATE=`Generate production-ready content for this page using the approved Information Architecture (IA) and the legacy website content. The legacy website is the authoritative source for page content. Before writing anything new, identify all content on the legacy site that belongs on this page and reuse it as closely as possible, preserving wording, lists, instructions, links, resource names, and other content wherever they fit the new IA. Treat the IA as the page outline, using each content bullet beneath the page as an H2 section. Reorganize legacy content to fit those sections, rewriting only to eliminate duplication, improve clarity, modernize formatting, or adapt it to the new structure. If the IA introduces a section that has no corresponding legacy content, write concise, consistent copy that matches the rest of the site. Likewise, if important contextual information is missing from the legacy content (such as explaining the Workforce Innovation and Opportunity Act (WIOA) when appropriate), add only the minimum new content needed to make the page complete. Favor preserving legacy content over creating new marketing copy.
+const DEFAULT_PROMPT_TEMPLATE=`Generate production-ready content for this page using the approved Information Architecture (IA) and the uploaded legacy content document. That document is the authoritative source for page content. Before writing anything new, identify all content in the legacy content document that belongs on this page and reuse it as closely as possible, preserving wording, lists, instructions, links, resource names, and other content wherever they fit the new IA. Treat the IA as the page outline, using each content bullet beneath the page as an H2 section. Reorganize legacy content to fit those sections, rewriting only to eliminate duplication, improve clarity, modernize formatting, or adapt it to the new structure. If the IA introduces a section that has no corresponding legacy content, write concise, consistent copy that matches the rest of the site. Likewise, if important contextual information is missing from the legacy content (such as explaining the Workforce Innovation and Opportunity Act (WIOA) when appropriate), add only the minimum new content needed to make the page complete. Favor preserving legacy content over creating new marketing copy.
 
-Format each page with a PAGE: marker, followed by the page title, a concise hero heading (4–7 words), and a brief introductory paragraph. Then present the IA-driven H2 sections with their content, followed by a horizontal rule, a short teaser leading to the next page in the IA, and a single bold Markdown link to that page as the call to action. Format every link as a Markdown link written as [link text](url); never output raw HTML, <a> tags, or code fences/backticks, so links paste into Google Docs as clickable text. Use Markdown links throughout the content, reserving the bold CTA link for the final next-page call to action only.
+Format each page with a PAGE: marker, followed by the page title, a concise hero heading (4–7 words), and a brief introductory paragraph. Then present the IA-driven H2 sections with their content, followed by a horizontal rule, a short teaser leading to the next page in the IA (see the uploaded IA outline), and a single bold Markdown link to that page as the call to action. Format every link as a Markdown link written as [link text](url); never output raw HTML, <a> tags, or code fences/backticks, so links paste into Google Docs as clickable text. Use Markdown links throughout the content, reserving the bold CTA link for the final next-page call to action only.
 
 Spell out the full name of any acronym on first use (with brief context if helpful), then use the acronym alone thereafter. Assume each page stands on its own, so don't rely on information from other pages. Use relative URLs for internal links, preserve relevant legacy external links where appropriate, and produce migration-ready Modern Campus content only—no production notes, implementation comments, or repeated sitewide CTA sections.
 
 --- PAGE INFORMATION ARCHITECTURE ---
 Page title: {{name}}
-Legacy page URL (authoritative source for this page's content): {{url}}
+Legacy page URL (find this page's existing content under this URL in the uploaded legacy content document): {{url}}
 
 Content bullets (use each as an H2 section):
 {{bullets}}`;
@@ -1349,6 +1355,54 @@ function copyPagePrompt(node){
     navigator.clipboard.writeText(text).then(()=>showToast('Prompt copied to clipboard'),()=>prompt('Copy this prompt:',text));
   }else{
     prompt('Copy this prompt:',text);
+  }
+}
+
+// ── IA outline ─────────────────────────────────────────────
+// A structured text rendering of the whole sitemap — hierarchy via
+// indentation, content sections marked "*", child pages marked "-" — so an LLM
+// reads page relationships losslessly (far more reliable than a sitemap image).
+function outlineNode(node,depth,lines){
+  const pad='  '.repeat(depth);
+  const u=cellUrl(node.page);
+  lines.push(pad+'- '+cellText(node.page)+(node.grouping?'  [grouping]':'')+(u?'  -> '+u:''));
+  (node.bullets||[]).forEach(b=>{
+    const bu=cellUrl(b);
+    lines.push(pad+'  * '+cellText(b)+(bu?'  ('+bu+')':''));
+  });
+  (node.children||[]).forEach(c=>outlineNode(c,depth+1,lines));
+}
+
+function buildIAOutline(){
+  if(!currentTree||!currentTree.root)return '';
+  const title=(document.getElementById('map-title').value||'Information Architecture').trim();
+  const lines=[
+    '# '+title,
+    '',
+    'Notation: indentation shows page hierarchy — child pages nest under their parent.',
+    'Lines starting with "-" are pages; lines starting with "*" are that page’s content sections (H2s), not sub-pages.',
+    '"-> URL" is a page’s reference URL. "[grouping]" marks an organizational label, not a real page.'
+  ];
+  lines.push('','## MAIN');
+  outlineNode(currentTree.root,0,lines);
+  if(currentTree.header&&currentTree.header.length){
+    lines.push('','## HEADER');
+    currentTree.header.forEach(n=>outlineNode(n,0,lines));
+  }
+  if(currentTree.footer&&currentTree.footer.length){
+    lines.push('','## FOOTER');
+    currentTree.footer.forEach(n=>outlineNode(n,0,lines));
+  }
+  return lines.join('\n');
+}
+
+function copyIAOutline(){
+  const text=buildIAOutline();
+  if(!text){alert('Load a sitemap first.');return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>showToast('IA outline copied to clipboard'),()=>prompt('Copy this IA outline:',text));
+  }else{
+    prompt('Copy this IA outline:',text);
   }
 }
 
