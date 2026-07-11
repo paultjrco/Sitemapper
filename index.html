@@ -1998,6 +1998,7 @@ function showTab(sheetName){
   document.getElementById('map-title').value=sheetName;
   document.getElementById('sheet-tab-select').value=sheetName;
   document.getElementById('review-tab-select').value=sheetName;
+  document.getElementById('map-title-wrap').style.display=''; // reveal the title bar (hidden during the review loading state)
   render();
 }
 
@@ -2037,6 +2038,9 @@ if(REVIEW_MODE){
   SHOW_DETAILS=false; // review pages open clean; the client opts into Details
   const sheet=URL_PARAMS.get('sheet');
   if(sheet){
+    // Hide the title bar while loading so the empty "Sitemap title…" placeholder
+    // isn't shown; showTab reveals it once the sitemap renders.
+    document.getElementById('map-title-wrap').style.display='none';
     document.getElementById('map').innerHTML='<div id="review-loading">Loading sitemap…</div>';
     document.getElementById('sheet-url').value=sheet;
     loadFromSheet(URL_PARAMS.get('tab')||undefined);
