@@ -556,10 +556,10 @@ body.prompt-mode .sm-prompt-btn { display: flex; }
           <h2 style="margin-bottom:6px">Prompt Template</h2>
           <div class="hint">
             In Prompt mode, click the icon on any page to copy this prompt with that page's info filled in.
-            Tokens: <code>{{name}}</code>, <code>{{bullets}}</code>.
+            Tokens: <code>{{name}}</code>, <code>{{url}}</code> (legacy page URL), <code>{{bullets}}</code>.
           </div>
           <textarea id="prompt-template" rows="12" spellcheck="false"
-            oninput="lsSet('sitemapper.promptTemplate',this.value)"
+            oninput="onPromptTemplateInput(this.value)"
             style="width:100%;padding:8px;font-size:11px;line-height:1.5;border:1px solid #ddd;border-radius:6px;font-family:inherit;background:#fafafa;resize:vertical;margin-top:6px;"></textarea>
           <button class="btn" onclick="resetPromptTemplate()" style="margin-top:6px;font-size:11px;padding:4px 10px;">Reset to default</button>
         </div>
@@ -1291,10 +1291,15 @@ function makeDraggable(el,node){
 // Editor-only: reveal a copy icon on each page that copies an LLM prompt built
 // from the page's name + bullets. The template is user-editable ({{name}} and
 // {{bullets}} tokens) and remembered in localStorage.
-const DEFAULT_PROMPT_TEMPLATE=`Generate production-ready content for this page using the approved information architecture (IA) and legacy website content. Treat the IA as the page outline, using each content bullet beneath the page as an H2 section. Reuse legacy content verbatim wherever it fits naturally, rewriting only to eliminate duplication, improve clarity, or adapt it to the new structure. If the IA introduces a section without corresponding legacy content, write concise, consistent copy that matches the rest of the site. Format the page with a PAGE: marker, followed by the page title, a concise hero heading (4–7 words), and a brief introductory paragraph. Then present the IA-driven H2 sections with their content, followed by a horizontal rule, a short teaser leading to the next page in the IA, and a single bold link to that page as the call to action. Format every link as a Markdown link written as [link text](url), with no leading or trailing spaces inside the square brackets — bracket only the exact words that should be clickable and keep any separating space outside the brackets, e.g. write "the [About Us](/about) page", never "the [ About Us ](/about) page" or "the[ About Us](/about) page". Never output raw HTML, <a> tags, or code fences/backticks, so links paste into Google Docs as clickable text. Use these Markdown text links throughout the content, reserving the bold CTA link for the final next-page call to action only. Spell out the full name of any acronym on first use (with brief context if helpful), then use the acronym thereafter. Assume each page stands alone, so don't rely on information from other pages. Use relative internal links, preserve relevant legacy hyperlinks where appropriate, and produce migration-ready Modern Campus content only—no production notes, implementation comments, or repeated sitewide CTA sections.
+const DEFAULT_PROMPT_TEMPLATE=`Generate production-ready content for this page using the approved Information Architecture (IA) and the legacy website content. The legacy website is the authoritative source for page content. Before writing anything new, identify all content on the legacy site that belongs on this page and reuse it as closely as possible, preserving wording, lists, instructions, links, resource names, and other content wherever they fit the new IA. Treat the IA as the page outline, using each content bullet beneath the page as an H2 section. Reorganize legacy content to fit those sections, rewriting only to eliminate duplication, improve clarity, modernize formatting, or adapt it to the new structure. If the IA introduces a section that has no corresponding legacy content, write concise, consistent copy that matches the rest of the site. Likewise, if important contextual information is missing from the legacy content (such as explaining the Workforce Innovation and Opportunity Act (WIOA) when appropriate), add only the minimum new content needed to make the page complete. Favor preserving legacy content over creating new marketing copy.
+
+Format each page with a PAGE: marker, followed by the page title, a concise hero heading (4–7 words), and a brief introductory paragraph. Then present the IA-driven H2 sections with their content, followed by a horizontal rule, a short teaser leading to the next page in the IA, and a single bold Markdown link to that page as the call to action. Format every link as a Markdown link written as [link text](url); never output raw HTML, <a> tags, or code fences/backticks, so links paste into Google Docs as clickable text. Use Markdown links throughout the content, reserving the bold CTA link for the final next-page call to action only.
+
+Spell out the full name of any acronym on first use (with brief context if helpful), then use the acronym alone thereafter. Assume each page stands on its own, so don't rely on information from other pages. Use relative URLs for internal links, preserve relevant legacy external links where appropriate, and produce migration-ready Modern Campus content only—no production notes, implementation comments, or repeated sitewide CTA sections.
 
 --- PAGE INFORMATION ARCHITECTURE ---
 Page title: {{name}}
+Legacy page URL (authoritative source for this page's content): {{url}}
 
 Content bullets (use each as an H2 section):
 {{bullets}}`;
@@ -1308,23 +1313,34 @@ function onPromptMode(checked){
   if(wrap)wrap.style.display=checked?'':'none';
 }
 
+// Marking the template "customized" (set only when the user edits the textarea)
+// lets a shipped default update reach anyone who hasn't hand-edited theirs,
+// instead of being pinned to a stale saved copy.
+function onPromptTemplateInput(val){
+  lsSet('sitemapper.promptTemplate',val);
+  lsSet('sitemapper.promptTemplateCustomized','1');
+}
+
 function resetPromptTemplate(){
   const ta=document.getElementById('prompt-template');
   ta.value=DEFAULT_PROMPT_TEMPLATE;
   lsSet('sitemapper.promptTemplate',DEFAULT_PROMPT_TEMPLATE);
+  lsSet('sitemapper.promptTemplateCustomized','0');
 }
 
-// Fill the template's tokens with this page's name and bullet list. Bullets
-// keep their link (if any) so the LLM can preserve legacy hyperlinks.
+// Fill the template's tokens with this page's name, legacy URL, and bullet list.
+// The legacy URL tells the LLM which page is the authoritative content source;
+// bullets keep their own link (if any) so legacy hyperlinks are preserved.
 function buildPagePrompt(node){
   const name=cellText(node.page);
+  const url=cellUrl(node.page)||'(no legacy URL in the sheet)';
   const bullets=(node.bullets||[]).map(b=>{
     const t=cellText(b),u=cellUrl(b);
     return '- '+t+(u?' (link: '+u+')':'');
   }).join('\n')||'- (no content bullets)';
   const ta=document.getElementById('prompt-template');
   const tpl=(ta&&ta.value)||DEFAULT_PROMPT_TEMPLATE;
-  return tpl.split('{{name}}').join(name).split('{{bullets}}').join(bullets);
+  return tpl.split('{{name}}').join(name).split('{{url}}').join(url).split('{{bullets}}').join(bullets);
 }
 
 function copyPagePrompt(node){
@@ -1941,10 +1957,14 @@ function copyLink(kind){
   }
 }
 
-// Seed the editable prompt template (remembered per browser; harmless in review).
+// Seed the editable prompt template. Only a hand-edited (customized) template
+// is restored from storage; otherwise always use the latest shipped default so
+// template improvements land without needing a manual "Reset to default".
 (function(){
   const ta=document.getElementById('prompt-template');
-  if(ta)ta.value=lsGet('sitemapper.promptTemplate')||DEFAULT_PROMPT_TEMPLATE;
+  if(!ta)return;
+  const customized=lsGet('sitemapper.promptTemplateCustomized')==='1';
+  ta.value=customized?(lsGet('sitemapper.promptTemplate')||DEFAULT_PROMPT_TEMPLATE):DEFAULT_PROMPT_TEMPLATE;
 })();
 
 if(REVIEW_MODE){
