@@ -851,12 +851,12 @@ function buildZoneForest(items,sectionLabel){
   return roots;
 }
 
-// Any Section value becomes its own zone (rendered like Header/Footer always
-// were) except "main", which is the one required hierarchical tree.
-// Stacking order is fixed at Header (if present) → Main → any custom
-// sections, in the order they first appear in the sheet → Footer (if
-// present) — Header/Footer keep their usual top/bottom spot regardless of
-// row order, so existing sheets render exactly as they always have.
+// Every Section value becomes its own zone (rendered like Header/Footer
+// always were) except "main", which is the one required hierarchical tree —
+// "header"/"footer" are not special-cased, they're just conventional names.
+// Sections stack top-to-bottom in the order they first appear in the sheet,
+// so put your header rows first and footer rows last if you want the usual
+// layout; there's no hardcoded position for any particular section name.
 function buildTreeFromPages(pages){
   const order=[];
   const bySection=new Map();
@@ -866,14 +866,7 @@ function buildTreeFromPages(pages){
     bySection.get(section).push(p);
   });
   if(!bySection.has('main')) throw new Error('No "main" section found — every sitemap needs at least one page with Section "main".');
-  const customZones=order.filter(name=>name!=='main'&&name!=='header'&&name!=='footer');
-  const finalOrder=[
-    ...(bySection.has('header')?['header']:[]),
-    'main',
-    ...customZones,
-    ...(bySection.has('footer')?['footer']:[])
-  ];
-  const sections=finalOrder.map(name=>
+  const sections=order.map(name=>
     name==='main'
       ?{name,kind:'main',root:buildMainFromSheet(bySection.get(name))}
       :{name,kind:'zone',items:buildZoneForest(bySection.get(name),name)}
