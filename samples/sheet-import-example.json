@@ -136,6 +136,26 @@
           "notes": []
         },
         {
+          "section": "sidebar",
+          "level": 1,
+          "name": "Resource Library",
+          "parent": null,
+          "notes": [
+            "Downloadable guides",
+            "Templates"
+          ]
+        },
+        {
+          "section": "sidebar",
+          "level": 2,
+          "name": "Popular Downloads",
+          "parent": "Resource Library",
+          "notes": [
+            "2026 Salary Guide",
+            "Interview Prep Kit"
+          ]
+        },
+        {
           "section": "footer",
           "level": 1,
           "name": "Privacy Policy",

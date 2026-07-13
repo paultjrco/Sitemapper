@@ -728,7 +728,8 @@ const COLORS=[
 const ZONE_COLOR={fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'};
 
 let BOX_W=95;
-let H_GAP_MAIN=22,H_GAP_HEADER=22,H_GAP_FOOTER=22;
+let H_GAP_MAIN=22,H_GAP_HEADER=22,H_GAP_FOOTER=22,H_GAP_ZONE=22;
+function gapForZone(name){return name==='header'?H_GAP_HEADER:name==='footer'?H_GAP_FOOTER:H_GAP_ZONE;}
 const H_ROW=36,V_GAP=8,V_DOWN=20,V_RIGHT=20;
 let BOX_RADIUS=4;
 let BOX_STROKE_W=2.5;
@@ -850,17 +851,34 @@ function buildZoneForest(items,sectionLabel){
   return roots;
 }
 
+// Any Section value becomes its own zone (rendered like Header/Footer always
+// were) except "main", which is the one required hierarchical tree.
+// Stacking order is fixed at Header (if present) → Main → any custom
+// sections, in the order they first appear in the sheet → Footer (if
+// present) — Header/Footer keep their usual top/bottom spot regardless of
+// row order, so existing sheets render exactly as they always have.
 function buildTreeFromPages(pages){
-  const bySection={main:[],header:[],footer:[]};
+  const order=[];
+  const bySection=new Map();
   pages.forEach(p=>{
-    const section=(p.section||'main').toLowerCase();
-    (bySection[section]||bySection.main).push(p);
+    const section=(p.section||'main').trim().toLowerCase()||'main';
+    if(!bySection.has(section)){bySection.set(section,[]);order.push(section);}
+    bySection.get(section).push(p);
   });
-  return{
-    root:buildMainFromSheet(bySection.main),
-    header:buildZoneForest(bySection.header,'header'),
-    footer:buildZoneForest(bySection.footer,'footer')
-  };
+  if(!bySection.has('main')) throw new Error('No "main" section found — every sitemap needs at least one page with Section "main".');
+  const customZones=order.filter(name=>name!=='main'&&name!=='header'&&name!=='footer');
+  const finalOrder=[
+    ...(bySection.has('header')?['header']:[]),
+    'main',
+    ...customZones,
+    ...(bySection.has('footer')?['footer']:[])
+  ];
+  const sections=finalOrder.map(name=>
+    name==='main'
+      ?{name,kind:'main',root:buildMainFromSheet(bySection.get(name))}
+      :{name,kind:'zone',items:buildZoneForest(bySection.get(name),name)}
+  );
+  return{sections,root:sections.find(s=>s.kind==='main').root};
 }
 
 const ruler=document.createElement('div');
@@ -984,7 +1002,10 @@ let currentTabName=null; // sheetName of the tab currentTree was built from
 function updateConnectors(){
   if(!svgEl||!currentTree||!currentTree.root)return;
   while(svgEl.firstChild)svgEl.removeChild(svgEl.firstChild);
-  drawConnectors(currentTree.root,svgEl);
+  currentTree.sections.forEach(sec=>{
+    if(sec.kind==='main')drawConnectors(sec.root,svgEl);
+    else sec.items.forEach(item=>drawConnectors(item,svgEl));
+  });
 }
 
 function drawConnectors(node,svg){
@@ -1409,16 +1430,15 @@ function buildIAOutline(){
     'Lines starting with "-" are pages; lines starting with "*" are that page’s content sections (H2s), not sub-pages.',
     '"-> URL" is a page’s reference URL. "[not a real page]" marks an organizational label (shown with a dashed border in the sitemap), not an actual page. "[represents multiple pages]" marks a repeating page template (shown with a stacked-pages icon), e.g. one "Blog Post" entry standing in for every blog post.'
   ];
-  lines.push('','## MAIN');
-  outlineNode(currentTree.root,0,lines);
-  if(currentTree.header&&currentTree.header.length){
-    lines.push('','## HEADER');
-    currentTree.header.forEach(n=>outlineNode(n,0,lines));
-  }
-  if(currentTree.footer&&currentTree.footer.length){
-    lines.push('','## FOOTER');
-    currentTree.footer.forEach(n=>outlineNode(n,0,lines));
-  }
+  currentTree.sections.forEach(sec=>{
+    if(sec.kind==='main'){
+      lines.push('','## MAIN');
+      outlineNode(sec.root,0,lines);
+    } else if(sec.items.length){
+      lines.push('','## '+sec.name.toUpperCase());
+      sec.items.forEach(n=>outlineNode(n,0,lines));
+    }
+  });
   return lines.join('\n');
 }
 
@@ -1593,6 +1613,22 @@ function renderZone(items,container,label,yStart,totalW,gap){
   return ZONE_HDR+6+maxTH;
 }
 
+function updateActualBH(node){
+  if(node._el)node.bh=node._el.offsetHeight;
+  node.children.forEach(c=>updateActualBH(c));
+}
+function repositionNode(node){
+  if(node._el){node._el.style.left=node.x+'px';node._el.style.top=node.y+'px';}
+  node.children.forEach(c=>repositionNode(c));
+}
+function recenterRootIfHorizontal(root){
+  if(root.children.length&&!root.vmode){
+    const fc=root.children[0],lc=root.children[root.children.length-1];
+    root.baseX=Math.round((fc.x+lc.x+BOX_W)/2-BOX_W/2);
+    root.x=root.baseX+(root.dx||0);
+  }
+}
+
 function render(){
   clearSelection();
   allNodes=[];
@@ -1600,70 +1636,63 @@ function render(){
   setUndoBtnDisabled(true);
   const container=document.getElementById('map');
   container.innerHTML='';
-  const{root,header,footer}=currentTree;
+  const sections=currentTree.sections;
 
-  measureTree(root,0);
-  header.forEach(item=>measureTree(item,0));
-  footer.forEach(item=>measureTree(item,0));
+  sections.forEach(sec=>{
+    if(sec.kind==='main')measureTree(sec.root,0);
+    else sec.items.forEach(item=>measureTree(item,0));
+  });
 
-  const totalW=Math.max(
-    root.tw+MARGIN*2,
-    zoneRowW(header,H_GAP_HEADER),
-    zoneRowW(footer,H_GAP_FOOTER)
-  );
+  const totalW=Math.max(...sections.map(sec=>
+    sec.kind==='main'?sec.root.tw+MARGIN*2:zoneRowW(sec.items,gapForZone(sec.name))
+  ));
 
-  let cy=MARGIN;
+  let cy=MARGIN,rendered=false,rootMX=0;
 
-  const hdrH=renderZone(header,container,'header',cy,totalW,H_GAP_HEADER);
-  if(hdrH)cy+=hdrH+ZONE_GAP;
+  sections.forEach(sec=>{
+    if(sec.kind==='zone'){
+      if(!sec.items.length)return;
+      if(rendered)cy+=ZONE_GAP;
+      rendered=true;
+      cy+=renderZone(sec.items,container,sec.name,cy,totalW,gapForZone(sec.name));
+      return;
+    }
 
-  // Main site label
-  const mainLbl=document.createElement('div');
-  mainLbl.className='zone-label';
-  mainLbl.style.cssText=`top:${cy}px;left:${MARGIN}px`;
-  mainLbl.textContent='main';
-  container.appendChild(mainLbl);
-  const mainRule=document.createElement('hr');
-  mainRule.className='zone-rule';
-  mainRule.style.cssText=`top:${cy+15}px;left:${MARGIN}px;width:${totalW-MARGIN*2}px`;
-  container.appendChild(mainRule);
-  cy+=ZONE_HDR+4;
+    if(rendered)cy+=ZONE_GAP;
+    rendered=true;
+    const root=sec.root;
 
-  placeTree(root,MARGIN,cy);
-  if(root.children.length&&!root.vmode){
-    const fc=root.children[0],lc=root.children[root.children.length-1];
-    root.baseX=Math.round((fc.x+lc.x+BOX_W)/2-BOX_W/2);
-    root.x=root.baseX+(root.dx||0);
-  }
+    const lbl=document.createElement('div');
+    lbl.className='zone-label';
+    lbl.style.cssText=`top:${cy}px;left:${MARGIN}px`;
+    lbl.textContent=sec.name;
+    container.appendChild(lbl);
+    const rule=document.createElement('hr');
+    rule.className='zone-rule';
+    rule.style.cssText=`top:${cy+15}px;left:${MARGIN}px;width:${totalW-MARGIN*2}px`;
+    container.appendChild(rule);
+    cy+=ZONE_HDR+4;
 
-  // Pass 1: render boxes so we can read actual heights from the DOM
-  renderBox(root,container);
+    placeTree(root,MARGIN,cy);
+    recenterRootIfHorizontal(root);
 
-  // Pass 2: update bh from actual rendered heights, re-layout, reposition
-  function updateActualBH(node){
-    if(node._el)node.bh=node._el.offsetHeight;
-    node.children.forEach(c=>updateActualBH(c));
-  }
-  updateActualBH(root);
-  measureTreeDims(root);
-  placeTree(root,MARGIN,cy);
-  if(root.children.length&&!root.vmode){
-    const fc=root.children[0],lc=root.children[root.children.length-1];
-    root.baseX=Math.round((fc.x+lc.x+BOX_W)/2-BOX_W/2);
-    root.x=root.baseX+(root.dx||0);
-  }
-  function reposition(node){
-    if(node._el){node._el.style.left=node.x+'px';node._el.style.top=node.y+'px';}
-    node.children.forEach(c=>reposition(c));
-  }
-  reposition(root);
+    // Pass 1: render boxes so we can read actual heights from the DOM
+    renderBox(root,container);
 
-  const[mx,my]=treeExtent(root);
-  cy=my+ZONE_GAP;
+    // Pass 2: update bh from actual rendered heights, re-layout, reposition
+    updateActualBH(root);
+    measureTreeDims(root);
+    placeTree(root,MARGIN,cy);
+    recenterRootIfHorizontal(root);
+    repositionNode(root);
 
-  const ftrH=renderZone(footer,container,'footer',cy,totalW,H_GAP_FOOTER);
-  const finalH=cy+(ftrH||0)+MARGIN;
-  const finalW=Math.max(mx+MARGIN,totalW);
+    const[mx,my]=treeExtent(root);
+    rootMX=mx;
+    cy=my;
+  });
+
+  const finalH=cy+MARGIN;
+  const finalW=Math.max(rootMX+MARGIN,totalW);
 
   container.style.width=finalW+'px';
   container.style.height=finalH+'px';
@@ -1674,10 +1703,10 @@ function render(){
   svgEl.setAttribute('height',finalH);
   container.insertBefore(svgEl,container.firstChild);
 
-  drawConnectors(root,svgEl);
-  header.forEach(item=>drawConnectors(item,svgEl));
-  footer.forEach(item=>drawConnectors(item,svgEl));
-
+  sections.forEach(sec=>{
+    if(sec.kind==='main')drawConnectors(sec.root,svgEl);
+    else sec.items.forEach(item=>drawConnectors(item,svgEl));
+  });
 }
 
 function wrapSVGText(text,maxWidth,fontSize){
