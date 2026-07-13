@@ -240,7 +240,7 @@ main {
   align-items: flex-start;
   gap: 12px;
 }
-.sm-box.is-grouping .sm-card {
+.sm-box.is-dashed .sm-card {
   border-style: dashed;
 }
 .sm-card {
@@ -780,16 +780,16 @@ function linkify(el,url){
   });
 }
 
-// A page whose Type column says "grouping" isn't a real page — rendered with
+// A page whose Type column says "dashed" isn't a real page — rendered with
 // a dashed border instead of solid so it reads as an organizational bucket.
-function isGroupingType(p){return String(p.type||'').trim().toLowerCase()==='grouping';}
+function isDashedType(p){return String(p.type||'').trim().toLowerCase()==='dashed';}
 
 function buildMainFromSheet(items){
   const byKey=new Map();
   items.forEach(p=>{
     const key=cellText(p.name);
     if(byKey.has(key)) throw new Error(`"${key}" appears more than once in the Main section — page names must be unique since Parent refers to them by name. Check for a duplicate row.`);
-    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,grouping:isGroupingType(p)});
+    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p)});
   });
   let root=null;
   items.forEach(p=>{
@@ -817,7 +817,7 @@ function buildZoneForest(items,sectionLabel){
   items.forEach(p=>{
     const key=cellText(p.name);
     if(byKey.has(key)) throw new Error(`"${key}" appears more than once in the ${sectionLabel} section — page names must be unique since Parent refers to them by name. Check for a duplicate row.`);
-    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,grouping:isGroupingType(p)});
+    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p)});
   });
   const roots=[];
   items.forEach(p=>{
@@ -1374,7 +1374,7 @@ function copyPagePrompt(node){
 function outlineNode(node,depth,lines){
   const pad='  '.repeat(depth);
   const u=cellUrl(node.page);
-  lines.push(pad+'- '+cellText(node.page)+(node.grouping?'  [grouping]':'')+(u?'  -> '+u:''));
+  lines.push(pad+'- '+cellText(node.page)+(node.dashed?'  [not a real page]':'')+(u?'  -> '+u:''));
   (node.bullets||[]).forEach(b=>{
     const bu=cellUrl(b);
     lines.push(pad+'  * '+cellText(b)+(bu?'  ('+bu+')':''));
@@ -1390,7 +1390,7 @@ function buildIAOutline(){
     '',
     'Notation: indentation shows page hierarchy — child pages nest under their parent.',
     'Lines starting with "-" are pages; lines starting with "*" are that page’s content sections (H2s), not sub-pages.',
-    '"-> URL" is a page’s reference URL. "[grouping]" marks an organizational label, not a real page.'
+    '"-> URL" is a page’s reference URL. "[not a real page]" marks an organizational label (shown with a dashed border in the sitemap), not an actual page.'
   ];
   lines.push('','## MAIN');
   outlineNode(currentTree.root,0,lines);
@@ -1444,7 +1444,7 @@ function renderBox(node,container){
   const el=document.createElement('div');
   const bullets=visibleBullets(node);
   const hasBullets=bullets.length>0; // gate width classes on shown notes so the box footprint matches the reflowed layout
-  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.grouping?' is-grouping':'');
+  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.dashed?' is-dashed':'');
   el.dataset.depth=node.depth;
   el.style.cssText=`left:${node.x}px;top:${node.y}px`;
 
@@ -1485,7 +1485,7 @@ function renderZoneBox(node,container){
   const el=document.createElement('div');
   const bullets=visibleBullets(node);
   const hasBullets=bullets.length>0; // gate width classes on shown notes so the box footprint matches the reflowed layout
-  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.grouping?' is-grouping':'');
+  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.dashed?' is-dashed':'');
   el.dataset.depth='zone';
   el.style.cssText=`left:${node.x}px;top:${node.y}px`;
 
@@ -1772,7 +1772,7 @@ function buildSVGString(filterId){
     rect.setAttribute('width',BOX_W);rect.setAttribute('height',cardHeight);
     rect.setAttribute('rx',BOX_RADIUS);rect.setAttribute('fill',card?card.style.background:box.style.background);
     rect.setAttribute('stroke',card?card.style.borderColor:box.style.borderColor);rect.setAttribute('stroke-width',BOX_STROKE_W);
-    if(box.classList.contains('is-grouping'))rect.setAttribute('stroke-dasharray',`${BOX_STROKE_W*2.5} ${BOX_STROKE_W*1.5}`);
+    if(box.classList.contains('is-dashed'))rect.setAttribute('stroke-dasharray',`${BOX_STROKE_W*2.5} ${BOX_STROKE_W*1.5}`);
     rect.setAttribute('filter',`url(#${filterId})`);
     bg2.appendChild(rect);
 

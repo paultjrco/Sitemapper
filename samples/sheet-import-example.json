@@ -94,7 +94,7 @@
           "level": 2,
           "name": "About",
           "parent": "Homepage",
-          "type": "grouping",
+          "type": "dashed",
           "notes": [
             "About Us",
             "Our Team",
