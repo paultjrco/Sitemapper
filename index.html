@@ -618,9 +618,6 @@ body.prompt-mode .sm-prompt-btn { display: flex; }
             <span class="col-name">Level 4</span>
             <input type="color" id="fill-4" value="#f2f2f2" oninput="onColorChange('fill',4,this.value)">
             <input type="color" id="accent-4" value="#333333" oninput="onColorChange('accent',4,this.value)">
-            <span class="col-name">Zone</span>
-            <input type="color" id="fill-zone" value="#f2f2f2" oninput="onColorChange('fill','zone',this.value)">
-            <input type="color" id="accent-zone" value="#333333" oninput="onColorChange('accent','zone',this.value)">
           </div>
         </div>
 
@@ -725,8 +722,6 @@ const COLORS=[
   {fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'},
   {fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'},
 ];
-const ZONE_COLOR={fill:'#f2f2f2',stroke:'#333333',title:'#333333',bullet:'#333333'};
-
 let BOX_W=95;
 let H_GAP_MAIN=22,H_GAP_HEADER=22,H_GAP_FOOTER=22,H_GAP_ZONE=22;
 function gapForZone(name){return name==='header'?H_GAP_HEADER:name==='footer'?H_GAP_FOOTER:H_GAP_ZONE;}
@@ -801,34 +796,9 @@ function isDashedType(p){return String(p.type||'').trim().toLowerCase()==='dashe
 // stacked-pages icon (a couple of offset outlines peeking out behind it).
 function isMultipleType(p){return String(p.type||'').trim().toLowerCase()==='multiple';}
 
-function buildMainFromSheet(items){
-  const byKey=new Map();
-  items.forEach(p=>{
-    const key=cellText(p.name);
-    if(byKey.has(key)) throw new Error(`"${key}" appears more than once in the Main section — page names must be unique since Parent refers to them by name. Check for a duplicate row.`);
-    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p),multiple:isMultipleType(p)});
-  });
-  let root=null;
-  items.forEach(p=>{
-    const key=cellText(p.name);
-    const node=byKey.get(key);
-    if(!p.parent){
-      if(root) throw new Error(`Main can only have one top-level page (empty Parent) — found a second one: "${key}".`);
-      root=node;
-    } else {
-      const parent=byKey.get(p.parent);
-      if(!parent) throw new Error(`"${key}" lists parent "${p.parent}", but no page with that name was found.`);
-      parent.children.push(node);
-    }
-  });
-  if(!root) throw new Error('Main needs at least one page with an empty Parent (the homepage).');
-  root.vmode=false;
-  return root;
-}
-
-// Header/footer items can nest via Parent just like Main, but allow multiple
-// top-level entries (no single-root constraint) since a nav zone is a row,
-// not a single tree.
+// Every section's items can nest via Parent, with any number of top-level
+// entries (no single-root constraint) — a section is a row of one or more
+// independent trees, "main" included.
 function buildZoneForest(items,sectionLabel){
   const byKey=new Map();
   items.forEach(p=>{
@@ -854,12 +824,11 @@ function buildZoneForest(items,sectionLabel){
   return roots;
 }
 
-// Every Section value becomes its own zone (rendered like Header/Footer
-// always were) except "main", which is the one required hierarchical tree —
-// "header"/"footer" are not special-cased, they're just conventional names.
-// Sections stack top-to-bottom in the order they first appear in the sheet,
-// so put your header rows first and footer rows last if you want the usual
-// layout; there's no hardcoded position for any particular section name.
+// Every Section value becomes its own zone, no name required or special —
+// not even "main". Sections stack top-to-bottom in the order they first
+// appear in the sheet, so put your header rows first and footer rows last
+// if you want the usual layout; there's no hardcoded position for any
+// particular section name.
 function buildTreeFromPages(pages){
   const order=[];
   const bySection=new Map();
@@ -868,13 +837,8 @@ function buildTreeFromPages(pages){
     if(!bySection.has(section)){bySection.set(section,[]);order.push(section);}
     bySection.get(section).push(p);
   });
-  if(!bySection.has('main')) throw new Error('No "main" section found — every sitemap needs at least one page with Section "main".');
-  const sections=order.map(name=>
-    name==='main'
-      ?{name,kind:'main',root:buildMainFromSheet(bySection.get(name))}
-      :{name,kind:'zone',items:buildZoneForest(bySection.get(name),name)}
-  );
-  return{sections,root:sections.find(s=>s.kind==='main').root};
+  const sections=order.map(name=>({name,items:buildZoneForest(bySection.get(name),name)}));
+  return{sections};
 }
 
 const ruler=document.createElement('div');
@@ -996,12 +960,9 @@ let sheetTabs=[]; // [{sheetName, pages}, ...] from the last successful sheet fe
 let currentTabName=null; // sheetName of the tab currentTree was built from
 
 function updateConnectors(){
-  if(!svgEl||!currentTree||!currentTree.root)return;
+  if(!svgEl||!currentTree||!currentTree.sections)return;
   while(svgEl.firstChild)svgEl.removeChild(svgEl.firstChild);
-  currentTree.sections.forEach(sec=>{
-    if(sec.kind==='main')drawConnectors(sec.root,svgEl);
-    else sec.items.forEach(item=>drawConnectors(item,svgEl));
-  });
+  currentTree.sections.forEach(sec=>sec.items.forEach(item=>drawConnectors(item,svgEl)));
 }
 
 function drawConnectors(node,svg){
@@ -1049,7 +1010,7 @@ function onFontSize(type,val){
 }
 
 function onColorChange(type,idx,val){
-  const target=idx==='zone'?ZONE_COLOR:COLORS[idx];
+  const target=COLORS[idx];
   if(type==='fill'){
     target.fill=val;
   } else {
@@ -1065,7 +1026,7 @@ function onBoxWidth(val){
   BOX_W=val;
   document.documentElement.style.setProperty('--sm-box-w',val+'px');
   document.getElementById('lbl-box-w').textContent=val+'px';
-  if(currentTree&&currentTree.root)render();
+  if(currentTree&&currentTree.sections)render();
 }
 
 function onColumnGap(section,val){
@@ -1074,7 +1035,7 @@ function onColumnGap(section,val){
   else if(section==='header')H_GAP_HEADER=val;
   else H_GAP_FOOTER=val;
   document.getElementById('lbl-col-gap-'+section).textContent=val+'px';
-  if(currentTree&&currentTree.root)render();
+  if(currentTree&&currentTree.sections)render();
 }
 
 function onBoxMinHeight(val){
@@ -1082,7 +1043,7 @@ function onBoxMinHeight(val){
   BOX_MIN_H=val;
   document.documentElement.style.setProperty('--sm-box-min-h',val+'px');
   document.getElementById('lbl-box-min-h').textContent=val+'px';
-  if(currentTree&&currentTree.root)render();
+  if(currentTree&&currentTree.sections)render();
 }
 
 function onBoxStrokeWidth(val){
@@ -1102,13 +1063,6 @@ function onGlobalBoxColor(type,val){
       document.getElementById('accent-'+i).value=val;
     }
   });
-  if(type==='fill'){
-    ZONE_COLOR.fill=val;
-    document.getElementById('fill-zone').value=val;
-  } else {
-    ZONE_COLOR.stroke=val;ZONE_COLOR.title=val;ZONE_COLOR.bullet=val;
-    document.getElementById('accent-zone').value=val;
-  }
   applyColors();
 }
 
@@ -1133,8 +1087,7 @@ function onConnectorWidth(val){
 
 function applyColors(){
   document.querySelectorAll('#map .sm-box').forEach(box=>{
-    const d=box.dataset.depth;
-    const c=d==='zone'?ZONE_COLOR:col(parseInt(d));
+    const c=col(parseInt(box.dataset.depth));
     const card=box.querySelector('.sm-card');
     if(card){
       card.style.background=c.fill;
@@ -1167,7 +1120,7 @@ function pushUndo(snap){
 }
 
 function tidyUp(){
-  if(!currentTree||!currentTree.root)return;
+  if(!currentTree||!currentTree.sections)return;
   allNodes.forEach(n=>{n.dx=0;n.dy=0;});
   render();
 }
@@ -1417,7 +1370,7 @@ function outlineNode(node,depth,lines){
 }
 
 function buildIAOutline(){
-  if(!currentTree||!currentTree.root)return '';
+  if(!currentTree||!currentTree.sections)return '';
   const title=(document.getElementById('map-title').value||'Information Architecture').trim();
   const lines=[
     '# '+title,
@@ -1427,10 +1380,7 @@ function buildIAOutline(){
     '"-> URL" is a page’s reference URL. "[not a real page]" marks an organizational label (shown with a dashed border in the sitemap), not an actual page. "[represents multiple pages]" marks a repeating page template (shown with a stacked-pages icon), e.g. one "Blog Post" entry standing in for every blog post.'
   ];
   currentTree.sections.forEach(sec=>{
-    if(sec.kind==='main'){
-      lines.push('','## MAIN');
-      outlineNode(sec.root,0,lines);
-    } else if(sec.items.length){
+    if(sec.items.length){
       lines.push('','## '+sec.name.toUpperCase());
       sec.items.forEach(n=>outlineNode(n,0,lines));
     }
@@ -1524,48 +1474,6 @@ function renderBox(node,container){
   node.children.forEach(child=>renderBox(child,container));
 }
 
-// Same as renderBox, but always uses ZONE_COLOR (header/footer items keep a
-// uniform look regardless of nesting depth, unlike Main's depth-based colors).
-function renderZoneBox(node,container){
-  const mode=bulletMode(node);
-  const el=document.createElement('div');
-  const bullets=visibleBullets(node);
-  const hasBullets=bullets.length>0; // gate width classes on shown notes so the box footprint matches the reflowed layout
-  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.dashed?' is-dashed':'')+(node.multiple?' is-multiple':'');
-  el.dataset.depth='zone';
-  el.style.cssText=`left:${node.x}px;top:${node.y}px`;
-  if(node.multiple)addPeekLayers(el,ZONE_COLOR.stroke);
-
-  const card=document.createElement('div');
-  card.className='sm-card';
-  card.style.cssText=`background:${ZONE_COLOR.fill};border-color:${ZONE_COLOR.stroke}`;
-  el.appendChild(card);
-
-  const title=document.createElement('div');
-  title.className='sm-title';
-  title.style.color=ZONE_COLOR.title;
-  title.textContent=cellText(node.page);
-  linkify(title,cellUrl(node.page));
-  card.appendChild(title);
-  addPromptButton(card,node);
-
-  if(bullets.length){
-    const list=document.createElement('div');
-    list.className='sm-bullet-list';
-    bullets.forEach(b=>{
-      const d=document.createElement('div');
-      d.className='sm-bullet';d.style.color=ZONE_COLOR.bullet;d.textContent=cellText(b);
-      linkify(d,cellUrl(b));
-      list.appendChild(d);
-    });
-    el.appendChild(list);
-  }
-
-  makeDraggable(el,node);
-  container.appendChild(el);
-  node.children.forEach(child=>renderZoneBox(child,container));
-}
-
 function renderZone(items,container,label,yStart,totalW,gap){
   if(!items.length)return 0;
   const lbl=document.createElement('div');
@@ -1584,7 +1492,7 @@ function renderZone(items,container,label,yStart,totalW,gap){
   items.forEach(item=>{
     placeTree(item,x,boxY);
     recenterRootIfHorizontal(item);
-    renderZoneBox(item,container);
+    renderBox(item,container);
     x+=item.tw+gap;
   });
 
@@ -1611,14 +1519,6 @@ function renderZone(items,container,label,yStart,totalW,gap){
   return ZONE_HDR+6+maxTH;
 }
 
-function updateActualBH(node){
-  if(node._el)node.bh=node._el.offsetHeight;
-  node.children.forEach(c=>updateActualBH(c));
-}
-function repositionNode(node){
-  if(node._el){node._el.style.left=node.x+'px';node._el.style.top=node.y+'px';}
-  node.children.forEach(c=>repositionNode(c));
-}
 function recenterRootIfHorizontal(root){
   if(root.children.length&&!root.vmode){
     const fc=root.children[0],lc=root.children[root.children.length-1];
@@ -1636,61 +1536,25 @@ function render(){
   container.innerHTML='';
   const sections=currentTree.sections;
 
-  sections.forEach(sec=>{
-    if(sec.kind==='main')measureTree(sec.root,0);
-    else sec.items.forEach(item=>measureTree(item,0));
-  });
+  sections.forEach(sec=>sec.items.forEach(item=>measureTree(item,0)));
 
-  const totalW=Math.max(...sections.map(sec=>
-    sec.kind==='main'?sec.root.tw+MARGIN*2:zoneRowW(sec.items,gapForZone(sec.name))
-  ));
+  const totalW=Math.max(...sections.map(sec=>zoneRowW(sec.items,gapForZone(sec.name))));
 
-  let cy=MARGIN,rendered=false,rootMX=0;
+  let cy=MARGIN,rendered=false,maxX=0;
 
   sections.forEach(sec=>{
-    if(sec.kind==='zone'){
-      if(!sec.items.length)return;
-      if(rendered)cy+=ZONE_GAP;
-      rendered=true;
-      cy+=renderZone(sec.items,container,sec.name,cy,totalW,gapForZone(sec.name));
-      return;
-    }
-
+    if(!sec.items.length)return;
     if(rendered)cy+=ZONE_GAP;
     rendered=true;
-    const root=sec.root;
-
-    const lbl=document.createElement('div');
-    lbl.className='zone-label';
-    lbl.style.cssText=`top:${cy}px;left:${MARGIN}px`;
-    lbl.textContent=sec.name;
-    container.appendChild(lbl);
-    const rule=document.createElement('hr');
-    rule.className='zone-rule';
-    rule.style.cssText=`top:${cy+15}px;left:${MARGIN}px;width:${totalW-MARGIN*2}px`;
-    container.appendChild(rule);
-    cy+=ZONE_HDR+4;
-
-    placeTree(root,MARGIN,cy);
-    recenterRootIfHorizontal(root);
-
-    // Pass 1: render boxes so we can read actual heights from the DOM
-    renderBox(root,container);
-
-    // Pass 2: update bh from actual rendered heights, re-layout, reposition
-    updateActualBH(root);
-    measureTreeDims(root);
-    placeTree(root,MARGIN,cy);
-    recenterRootIfHorizontal(root);
-    repositionNode(root);
-
-    const[mx,my]=treeExtent(root);
-    rootMX=mx;
-    cy=my;
+    cy+=renderZone(sec.items,container,sec.name,cy,totalW,gapForZone(sec.name));
+    sec.items.forEach(item=>{
+      const[ex]=treeExtent(item);
+      maxX=Math.max(maxX,ex);
+    });
   });
 
   const finalH=cy+MARGIN;
-  const finalW=Math.max(rootMX+MARGIN,totalW);
+  const finalW=Math.max(maxX+MARGIN,totalW);
 
   container.style.width=finalW+'px';
   container.style.height=finalH+'px';
@@ -1701,10 +1565,7 @@ function render(){
   svgEl.setAttribute('height',finalH);
   container.insertBefore(svgEl,container.firstChild);
 
-  sections.forEach(sec=>{
-    if(sec.kind==='main')drawConnectors(sec.root,svgEl);
-    else sec.items.forEach(item=>drawConnectors(item,svgEl));
-  });
+  sections.forEach(sec=>sec.items.forEach(item=>drawConnectors(item,svgEl)));
 }
 
 function wrapSVGText(text,maxWidth,fontSize){
