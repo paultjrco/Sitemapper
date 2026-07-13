@@ -243,6 +243,17 @@ main {
 .sm-box.is-dashed .sm-card {
   border-style: dashed;
 }
+.sm-peek {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--sm-box-w, 95px);
+  height: var(--sm-box-min-h, 60px);
+  background: #fff;
+  border-radius: var(--sm-box-radius, 4px);
+  border-width: var(--sm-box-stroke-w, 2.5px);
+  border-style: solid;
+}
 .sm-card {
   position: relative;
   width: var(--sm-box-w, 95px);
@@ -784,12 +795,17 @@ function linkify(el,url){
 // a dashed border instead of solid so it reads as an organizational bucket.
 function isDashedType(p){return String(p.type||'').trim().toLowerCase()==='dashed';}
 
+// A page whose Type column says "multiple" represents a repeating page
+// template (e.g. "Blog Post"), not one single page — rendered with a
+// stacked-pages icon (a couple of offset outlines peeking out behind it).
+function isMultipleType(p){return String(p.type||'').trim().toLowerCase()==='multiple';}
+
 function buildMainFromSheet(items){
   const byKey=new Map();
   items.forEach(p=>{
     const key=cellText(p.name);
     if(byKey.has(key)) throw new Error(`"${key}" appears more than once in the Main section — page names must be unique since Parent refers to them by name. Check for a duplicate row.`);
-    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p)});
+    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p),multiple:isMultipleType(p)});
   });
   let root=null;
   items.forEach(p=>{
@@ -817,7 +833,7 @@ function buildZoneForest(items,sectionLabel){
   items.forEach(p=>{
     const key=cellText(p.name);
     if(byKey.has(key)) throw new Error(`"${key}" appears more than once in the ${sectionLabel} section — page names must be unique since Parent refers to them by name. Check for a duplicate row.`);
-    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p)});
+    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p),multiple:isMultipleType(p)});
   });
   const roots=[];
   items.forEach(p=>{
@@ -1374,7 +1390,8 @@ function copyPagePrompt(node){
 function outlineNode(node,depth,lines){
   const pad='  '.repeat(depth);
   const u=cellUrl(node.page);
-  lines.push(pad+'- '+cellText(node.page)+(node.dashed?'  [not a real page]':'')+(u?'  -> '+u:''));
+  const typeTag=node.dashed?'  [not a real page]':node.multiple?'  [represents multiple pages]':'';
+  lines.push(pad+'- '+cellText(node.page)+typeTag+(u?'  -> '+u:''));
   (node.bullets||[]).forEach(b=>{
     const bu=cellUrl(b);
     lines.push(pad+'  * '+cellText(b)+(bu?'  ('+bu+')':''));
@@ -1390,7 +1407,7 @@ function buildIAOutline(){
     '',
     'Notation: indentation shows page hierarchy — child pages nest under their parent.',
     'Lines starting with "-" are pages; lines starting with "*" are that page’s content sections (H2s), not sub-pages.',
-    '"-> URL" is a page’s reference URL. "[not a real page]" marks an organizational label (shown with a dashed border in the sitemap), not an actual page.'
+    '"-> URL" is a page’s reference URL. "[not a real page]" marks an organizational label (shown with a dashed border in the sitemap), not an actual page. "[represents multiple pages]" marks a repeating page template (shown with a stacked-pages icon), e.g. one "Blog Post" entry standing in for every blog post.'
   ];
   lines.push('','## MAIN');
   outlineNode(currentTree.root,0,lines);
@@ -1438,15 +1455,28 @@ function addPromptButton(card,node){
   card.appendChild(btn);
 }
 
+// For a "multiple" page, append a couple of offset outline layers behind
+// where the card will go — DOM order (peeks first, card appended after)
+// puts the card visually on top with no z-index needed.
+function addPeekLayers(el,borderColor){
+  [12,6].forEach(offset=>{
+    const peek=document.createElement('div');
+    peek.className='sm-peek';
+    peek.style.cssText=`border-color:${borderColor};transform:translate(${offset}px,-${offset}px)`;
+    el.appendChild(peek);
+  });
+}
+
 function renderBox(node,container){
   const c=col(node.depth);
   const mode=bulletMode(node);
   const el=document.createElement('div');
   const bullets=visibleBullets(node);
   const hasBullets=bullets.length>0; // gate width classes on shown notes so the box footprint matches the reflowed layout
-  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.dashed?' is-dashed':'');
+  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.dashed?' is-dashed':'')+(node.multiple?' is-multiple':'');
   el.dataset.depth=node.depth;
   el.style.cssText=`left:${node.x}px;top:${node.y}px`;
+  if(node.multiple)addPeekLayers(el,c.stroke);
 
   const card=document.createElement('div');
   card.className='sm-card';
@@ -1485,9 +1515,10 @@ function renderZoneBox(node,container){
   const el=document.createElement('div');
   const bullets=visibleBullets(node);
   const hasBullets=bullets.length>0; // gate width classes on shown notes so the box footprint matches the reflowed layout
-  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.dashed?' is-dashed':'');
+  el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.dashed?' is-dashed':'')+(node.multiple?' is-multiple':'');
   el.dataset.depth='zone';
   el.style.cssText=`left:${node.x}px;top:${node.y}px`;
+  if(node.multiple)addPeekLayers(el,ZONE_COLOR.stroke);
 
   const card=document.createElement('div');
   card.className='sm-card';
@@ -1766,6 +1797,18 @@ function buildSVGString(filterId){
     const card=box.querySelector('.sm-card');
     const cardHeight=card?card.offsetHeight:box.offsetHeight;
     const bg2=document.createElementNS(ns,'g');
+
+    if(box.classList.contains('is-multiple')){
+      [12,6].forEach(offset=>{
+        const peek=document.createElementNS(ns,'rect');
+        peek.setAttribute('x',bx+offset);peek.setAttribute('y',by-offset);
+        peek.setAttribute('width',BOX_W);peek.setAttribute('height',cardHeight);
+        peek.setAttribute('rx',BOX_RADIUS);peek.setAttribute('fill','#ffffff');
+        peek.setAttribute('stroke',card?card.style.borderColor:box.style.borderColor);
+        peek.setAttribute('stroke-width',BOX_STROKE_W);
+        bg2.appendChild(peek);
+      });
+    }
 
     const rect=document.createElementNS(ns,'rect');
     rect.setAttribute('x',bx);rect.setAttribute('y',by);

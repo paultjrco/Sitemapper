@@ -84,6 +84,7 @@
           "level": 3,
           "name": "Career Services",
           "parent": "Job Seekers",
+          "type": "multiple",
           "notes": [
             "One-on-one counseling",
             "Orientation required"
