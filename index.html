@@ -848,6 +848,9 @@ function buildZoneForest(items,sectionLabel){
       parent.children.push(node);
     }
   });
+  // Top-level zone items fan their children out horizontally, same as Main's
+  // root — only deeper nesting stacks vertically (vmode stays true there).
+  roots.forEach(root=>{root.vmode=false;});
   return roots;
 }
 
@@ -1580,6 +1583,7 @@ function renderZone(items,container,label,yStart,totalW,gap){
   let x=MARGIN;
   items.forEach(item=>{
     placeTree(item,x,boxY);
+    recenterRootIfHorizontal(item);
     renderZoneBox(item,container);
     x+=item.tw+gap;
   });
@@ -1598,6 +1602,7 @@ function renderZone(items,container,label,yStart,totalW,gap){
   x=MARGIN;
   items.forEach(item=>{
     placeTree(item,x,boxY);
+    recenterRootIfHorizontal(item);
     x+=item.tw+gap;
   });
   items.forEach(item=>reposition(item));
