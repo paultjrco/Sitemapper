@@ -10,7 +10,7 @@
  * URL into Sitemapper's "Import from Google Sheet" field.
  */
 
-const HEADERS = ['Section', 'Level 1', 'Level 2', 'Level 3', 'Level 4', 'Parent', 'Notes', 'Type'];
+const HEADERS = ['Section', 'Level 1', 'Level 2', 'Level 3', 'Level 4', 'Parent', 'Notes', 'Type', 'Color'];
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -40,6 +40,7 @@ function readPages(sheet) {
   const parentCol = colIndex('Parent');
   const notesCol = colIndex('Notes');
   const typeCol = colIndex('Type');
+  const colorCol = colIndex('Color');
   const levelCols = [1, 2, 3, 4].map(n => colIndex('Level ' + n));
 
   const numRows = lastRow - 1;
@@ -70,8 +71,9 @@ function readPages(sheet) {
     const parent = parentCol === -1 || !row[parentCol] ? null : String(row[parentCol]).trim();
     const notes = notesCol === -1 ? [] : parseNotes(String(row[notesCol] || ''), richRow[notesCol]);
     const type = typeCol === -1 || !row[typeCol] ? null : String(row[typeCol]).trim().toLowerCase();
+    const color = colorCol === -1 || !row[colorCol] ? null : String(row[colorCol]).trim().toLowerCase();
 
-    pages.push({ section, level, name, parent, notes, type });
+    pages.push({ section, level, name, parent, notes, type, color });
   }
   return pages;
 }

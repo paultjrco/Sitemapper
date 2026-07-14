@@ -803,13 +803,14 @@ function isDashedType(p){return String(p.type||'').trim().toLowerCase()==='dashe
 // stacked-pages icon (a couple of offset outlines peeking out behind it).
 function isMultipleType(p){return String(p.type||'').trim().toLowerCase()==='multiple';}
 
-// A page whose Type column names a color swaps just the border color —
-// fill/text/bullets stay whatever the depth-based palette already gives it.
-const TYPE_BORDER_COLORS={
+// A page whose independent Color column names a color swaps just the border
+// color — fill/text/bullets stay whatever the depth-based palette already
+// gives it, and it composes freely with Type (e.g. Type=Dashed, Color=Red).
+const BORDER_COLORS={
   red:'#dc2626',orange:'#ea580c',yellow:'#ca8a04',
   green:'#16a34a',blue:'#2563eb',violet:'#7c3aed'
 };
-function borderColorForType(p){return TYPE_BORDER_COLORS[String(p.type||'').trim().toLowerCase()]||null;}
+function borderColorForRow(p){return BORDER_COLORS[String(p.color||'').trim().toLowerCase()]||null;}
 
 // Every section's items can nest via Parent, with any number of top-level
 // entries (no single-root constraint) — a section is a row of one or more
@@ -819,7 +820,7 @@ function buildZoneForest(items,sectionLabel){
   items.forEach(p=>{
     const key=cellText(p.name);
     if(byKey.has(key)) throw new Error(`"${key}" appears more than once in the ${sectionLabel} section — page names must be unique since Parent refers to them by name. Check for a duplicate row.`);
-    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p),multiple:isMultipleType(p),borderColor:borderColorForType(p)});
+    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p),multiple:isMultipleType(p),borderColor:borderColorForRow(p)});
   });
   const roots=[];
   items.forEach(p=>{

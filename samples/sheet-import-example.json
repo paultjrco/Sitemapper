@@ -99,6 +99,7 @@
           "name": "Career Services",
           "parent": "Job Seekers",
           "type": "multiple",
+          "color": "violet",
           "notes": [
             "One-on-one counseling",
             "Orientation required"
@@ -110,6 +111,7 @@
           "name": "About",
           "parent": "Homepage",
           "type": "dashed",
+          "color": "red",
           "notes": [
             "About Us",
             "Our Team",
@@ -121,7 +123,7 @@
           "level": 3,
           "name": "Team",
           "parent": "About",
-          "type": "blue",
+          "color": "blue",
           "notes": [
             "Leadership bios",
             "Org chart"
