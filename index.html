@@ -944,6 +944,7 @@ function measureTree(node,depth){
   node.depth=depth;
   node.children.forEach(c=>measureTree(c,depth+1));
   node.bh=measureBH(visibleBullets(node),bulletMode(node));
+  if(node.multiple)node.bh+=PEEK_OVERHANG;
   measureTreeDims(node);
 }
 
@@ -1436,11 +1437,19 @@ function addPromptButton(card,node){
   card.appendChild(btn);
 }
 
+// A "multiple" box's peek layers are position:absolute, so they never
+// contribute to the box's normal-flow height — anything measuring that
+// height for layout (siblings stacking below it, etc.) needs to manually
+// reserve this much extra room, or the peek's overhang collides with
+// whatever comes next.
+const PEEK_OFFSETS=[12,6];
+const PEEK_OVERHANG=16; // largest offset (12) + a little breathing room
+
 // For a "multiple" page, append a couple of offset outline layers behind
 // where the card will go — DOM order (peeks first, card appended after)
 // puts the card visually on top with no z-index needed.
 function addPeekLayers(el,borderColor){
-  [12,6].forEach(offset=>{
+  PEEK_OFFSETS.forEach(offset=>{
     const peek=document.createElement('div');
     peek.className='sm-peek';
     peek.style.cssText=`border-color:${borderColor};transform:translate(${offset}px,${offset}px)`;
@@ -1515,7 +1524,7 @@ function renderZone(items,container,label,yStart,totalW,gap){
 
   // Pass 2: correct bh from actual rendered heights, re-measure, re-place, reposition
   function updateActualBH(node){
-    if(node._el)node.bh=node._el.offsetHeight;
+    if(node._el)node.bh=node._el.offsetHeight+(node.multiple?PEEK_OVERHANG:0);
     node.children.forEach(c=>updateActualBH(c));
   }
   function reposition(node){
@@ -1707,7 +1716,7 @@ function buildSVGString(filterId){
       // Peeks point down-right, full card size (matching the live CSS) — the
       // is-multiple CSS rule already gave the bullet list extra headroom so
       // this doesn't need to shrink to avoid it.
-      [12,6].forEach(offset=>{
+      PEEK_OFFSETS.forEach(offset=>{
         const peek=document.createElementNS(ns,'rect');
         peek.setAttribute('x',bx+offset);peek.setAttribute('y',by+offset);
         peek.setAttribute('width',BOX_W);peek.setAttribute('height',cardHeight);
