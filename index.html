@@ -796,6 +796,14 @@ function isDashedType(p){return String(p.type||'').trim().toLowerCase()==='dashe
 // stacked-pages icon (a couple of offset outlines peeking out behind it).
 function isMultipleType(p){return String(p.type||'').trim().toLowerCase()==='multiple';}
 
+// A page whose Type column names a color swaps just the border color —
+// fill/text/bullets stay whatever the depth-based palette already gives it.
+const TYPE_BORDER_COLORS={
+  red:'#dc2626',orange:'#ea580c',yellow:'#ca8a04',
+  green:'#16a34a',blue:'#2563eb',violet:'#7c3aed'
+};
+function borderColorForType(p){return TYPE_BORDER_COLORS[String(p.type||'').trim().toLowerCase()]||null;}
+
 // Every section's items can nest via Parent, with any number of top-level
 // entries (no single-root constraint) — a section is a row of one or more
 // independent trees, "main" included.
@@ -804,7 +812,7 @@ function buildZoneForest(items,sectionLabel){
   items.forEach(p=>{
     const key=cellText(p.name);
     if(byKey.has(key)) throw new Error(`"${key}" appears more than once in the ${sectionLabel} section — page names must be unique since Parent refers to them by name. Check for a duplicate row.`);
-    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p),multiple:isMultipleType(p)});
+    byKey.set(key,{page:p.name,bullets:p.notes||[],children:[],vmode:true,dx:0,dy:0,dashed:isDashedType(p),multiple:isMultipleType(p),borderColor:borderColorForType(p)});
   });
   const roots=[];
   items.forEach(p=>{
@@ -1091,7 +1099,7 @@ function applyColors(){
     const card=box.querySelector('.sm-card');
     if(card){
       card.style.background=c.fill;
-      card.style.borderColor=c.stroke;
+      card.style.borderColor=box.dataset.borderColor||c.stroke;
     }
     const title=box.querySelector('.sm-title');
     if(title)title.style.color=c.title;
@@ -1435,18 +1443,20 @@ function addPeekLayers(el,borderColor){
 
 function renderBox(node,container){
   const c=col(node.depth);
+  const borderColor=node.borderColor||c.stroke;
   const mode=bulletMode(node);
   const el=document.createElement('div');
   const bullets=visibleBullets(node);
   const hasBullets=bullets.length>0; // gate width classes on shown notes so the box footprint matches the reflowed layout
   el.className='sm-box'+(hasBullets?' has-bullets':'')+(hasBullets&&mode==='side'?' bullets-side':hasBullets&&mode==='indent'?' has-children-v':'')+(node.dashed?' is-dashed':'')+(node.multiple?' is-multiple':'');
   el.dataset.depth=node.depth;
+  if(node.borderColor)el.dataset.borderColor=node.borderColor; // lets applyColors() preserve this override
   el.style.cssText=`left:${node.x}px;top:${node.y}px`;
-  if(node.multiple)addPeekLayers(el,c.stroke);
+  if(node.multiple)addPeekLayers(el,borderColor);
 
   const card=document.createElement('div');
   card.className='sm-card';
-  card.style.cssText=`background:${c.fill};border-color:${c.stroke}`;
+  card.style.cssText=`background:${c.fill};border-color:${borderColor}`;
   el.appendChild(card);
 
   const title=document.createElement('div');

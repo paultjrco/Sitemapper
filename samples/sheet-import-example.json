@@ -121,6 +121,7 @@
           "level": 3,
           "name": "Team",
           "parent": "About",
+          "type": "blue",
           "notes": [
             "Leadership bios",
             "Org chart"
