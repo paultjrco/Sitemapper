@@ -248,10 +248,7 @@ main {
   top: 0;
   left: 0;
   width: var(--sm-box-w, 95px);
-  /* Shorter than the card by the largest peek offset (12px) so peeking
-     downward never reaches past the card's own bottom edge into its
-     bullet list. */
-  height: calc(var(--sm-box-min-h, 60px) - 12px);
+  height: var(--sm-box-min-h, 60px);
   background: #fff;
   border-radius: var(--sm-box-radius, 4px);
   border-width: var(--sm-box-stroke-w, 2.5px);
@@ -298,6 +295,13 @@ main {
   width: 220px;
   margin-top: 6px;
   padding: 0 4px 0 10px;
+}
+/* A "multiple" box's peek layers extend below the card by up to 12px (plus
+   stroke width) — give the bullet list enough headroom that the peek's
+   visible sliver doesn't run into the text. Only applies to the default
+   below-the-card bullet layout; side/indent modes don't have this collision. */
+.sm-box.is-multiple:not(.bullets-side):not(.has-children-v) .sm-bullet-list {
+  margin-top: 20px;
 }
 .sm-box.has-children-v .sm-bullet-list {
   padding-left: 34px;
@@ -1700,13 +1704,13 @@ function buildSVGString(filterId){
     const bg2=document.createElementNS(ns,'g');
 
     if(box.classList.contains('is-multiple')){
-      // Peeks point down-right and stay within the card's own height (minus
-      // the largest offset) so they never reach into its bullet list below.
-      const peekHeight=Math.max(0,cardHeight-12);
+      // Peeks point down-right, full card size (matching the live CSS) — the
+      // is-multiple CSS rule already gave the bullet list extra headroom so
+      // this doesn't need to shrink to avoid it.
       [12,6].forEach(offset=>{
         const peek=document.createElementNS(ns,'rect');
         peek.setAttribute('x',bx+offset);peek.setAttribute('y',by+offset);
-        peek.setAttribute('width',BOX_W);peek.setAttribute('height',peekHeight);
+        peek.setAttribute('width',BOX_W);peek.setAttribute('height',cardHeight);
         peek.setAttribute('rx',BOX_RADIUS);peek.setAttribute('fill','#ffffff');
         peek.setAttribute('stroke',card?card.style.borderColor:box.style.borderColor);
         peek.setAttribute('stroke-width',BOX_STROKE_W);
